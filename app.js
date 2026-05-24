@@ -408,6 +408,22 @@ function computeVerdict(p) {
   return { verdictKey, flags, energy, sugar, fat, satfat, salt, proteins, fiber, verdictReason };
 }
 
+  function barHtml(val, max, ok, warn) {
+    if (val === undefined || val === null) return '';
+    const pct = Math.min((val / max) * 100, 100).toFixed(1);
+    const cls = val <= ok ? 'fill-green' : val <= warn ? 'fill-warn' : 'fill-red';
+    return `<div class="nutr-bar"><div class="nutr-fill ${cls}" data-width="${pct}"></div></div>`;
+  }
+  function nutrItem(label, val, unit, max, ok, warn) {
+    const display = (val !== undefined && val !== null) ? val.toFixed(1) : '—';
+    return `
+      <div class="nutr-item">
+        <div class="nutr-label">${esc(label)}</div>
+        <div class="nutr-value">${esc(display)}<span class="nutr-unit">${esc(unit)}</span></div>
+        ${val !== undefined ? barHtml(val, max, ok, warn) : ''}
+      </div>`;
+  }
+
 function buildNutritionGrid(p, L) {
   const nutr = p.nutriments || {};
 
@@ -481,53 +497,46 @@ function renderProduct(p) {
   const { verdictKey, flags, energy, sugar, fat, satfat, salt, proteins, fiber, verdictReason }
     = computeVerdict(p);
 
-  // Remplacer toutes les détections actuelles par ce bloc :
+  // Détections (productName, hasPork, hasAlcohol, etc.)
+  const productName = (p.product_name || '').toLowerCase();
+  const genericName = (p.generic_name || '').toLowerCase();
+  const ingr = (p.ingredients_text || '').toLowerCase();
+  const categories = (p.categories_tags || []).join(' ').toLowerCase();
+  const labels = (p.labels_tags || []).join(' ').toLowerCase();
+  const allergens = (p.allergens_tags || []).join(' ').toLowerCase();
+  const traces = (p.traces_tags || []).join(' ').toLowerCase();
 
-const productName = (p.product_name || '').toLowerCase();
-const genericName = (p.generic_name || '').toLowerCase();
-const ingr = (p.ingredients_text || '').toLowerCase();
-const categories = (p.categories_tags || []).join(' ').toLowerCase();
-const labels = (p.labels_tags || []).join(' ').toLowerCase();
-const allergens = (p.allergens_tags || []).join(' ').toLowerCase();
-const traces = (p.traces_tags || []).join(' ').toLowerCase();
+  const specificIngredients = (p.specific_ingredients || [])
+    .map(i => (i.ingredient || i.id || '').toLowerCase())
+    .join(' ');
 
-// specific_ingredients (très fiable)
-const specificIngredients = (p.specific_ingredients || [])
-  .map(i => (i.ingredient || i.id || '').toLowerCase())
-  .join(' ');
+  const porkPattern = /\b(porc|pork|lard|gelatine|gélatine|saindoux|jambon|cochon|porcine|pig|bacon|ham)\b/i;
+  const hasPork = porkPattern.test(ingr)
+               || porkPattern.test(specificIngredients)
+               || porkPattern.test(categories)
+               || porkPattern.test(labels)
+               || porkPattern.test(productName)
+               || porkPattern.test(genericName);
 
-// --- PORC ---
-const porkPattern = /\b(porc|pork|lard|gelatine|gélatine|saindoux|jambon|cochon|porcine|pig|bacon|ham)\b/i;
-const hasPork = porkPattern.test(ingr)
-             || porkPattern.test(specificIngredients)
-             || porkPattern.test(categories)
-             || porkPattern.test(labels)
-             || (porkPattern.test(productName))
-             || (porkPattern.test(genericName));
+  const alcoholPattern = /\b(alcool|alcohol|vin|wine|bier|beer|bière|whisky|vodka|rhum|rum|cidre|cider|champagne)\b/i;
+  const hasAlcohol = alcoholPattern.test(ingr)
+                  || alcoholPattern.test(specificIngredients)
+                  || alcoholPattern.test(categories)
+                  || alcoholPattern.test(productName);
 
-// --- ALCOOL ---
-const alcoholPattern = /\b(alcool|alcohol|vin|wine|bier|beer|bière|whisky|vodka|rhum|rum|cidre|cider|champagne)\b/i;
-const hasAlcohol = alcoholPattern.test(ingr)
-                || alcoholPattern.test(specificIngredients)
-                || alcoholPattern.test(categories)
-                || alcoholPattern.test(productName);
+  const glutenPattern = /\b(gluten|blé|wheat|orge|barley|seigle|rye|avoine|oats|épeautre|spelt|kamut)\b/i;
+  const hasGluten = glutenPattern.test(ingr)
+                 || glutenPattern.test(specificIngredients)
+                 || allergens.includes('gluten')
+                 || traces.includes('gluten');
 
-// --- GLUTEN ---
-const glutenPattern = /\b(gluten|blé|wheat|orge|barley|seigle|rye|avoine|oats|épeautre|spelt|kamut)\b/i;
-const hasGluten = glutenPattern.test(ingr)
-               || glutenPattern.test(specificIngredients)
-               || allergens.includes('gluten')
-               || traces.includes('gluten');
+  const lactosePattern = /\b(lait|milk|lactose|lactos|crème|cream|beurre|butter|fromage|cheese|yogourt|yogurt|petit-lait|whey)\b/i;
+  const hasLactose = lactosePattern.test(ingr)
+                   || lactosePattern.test(specificIngredients)
+                   || allergens.includes('milk')
+                   || traces.includes('milk');
 
-// --- LACTOSE ---
-const lactosePattern = /\b(lait|milk|lactose|lactos|crème|cream|beurre|butter|fromage|cheese|yogourt|yogurt|petit-lait|whey)\b/i;
-const hasLactose = lactosePattern.test(ingr)
-                 || lactosePattern.test(specificIngredients)
-                 || allergens.includes('milk')
-                 || traces.includes('milk');
-
-// --- HALAL ---
-const notHalal = (hasPork || hasAlcohol) && !labels.includes('halal');
+  const notHalal = (hasPork || hasAlcohol) && !labels.includes('halal');
 
   const nutriBadge = nutri
     ? `<span class="badge badge-nutri-${nutri.toLowerCase()}">Nutri-Score ${nutri}</span>`
@@ -542,12 +551,14 @@ const notHalal = (hasPork || hasAlcohol) && !labels.includes('halal');
     ? `<img class="product-image" src="${esc(imgUrl)}" alt="" loading="lazy">`
     : `<div class="product-no-image">🥫</div>`;
 
+  // ========== FONCTIONS NUTRITION ==========
   function barHtml(val, max, ok, warn) {
     if (val === undefined || val === null) return '';
     const pct = Math.min((val / max) * 100, 100).toFixed(1);
     const cls = val <= ok ? 'fill-green' : val <= warn ? 'fill-warn' : 'fill-red';
     return `<div class="nutr-bar"><div class="nutr-fill ${cls}" data-width="${pct}"></div></div>`;
   }
+
   function nutrItem(label, val, unit, max, ok, warn) {
     const display = (val !== undefined && val !== null) ? val.toFixed(1) : '—';
     return `
@@ -558,21 +569,64 @@ const notHalal = (hasPork || hasAlcohol) && !labels.includes('halal');
       </div>`;
   }
 
-  const N = L.nutrients;
-  const satfatVal = nutr['saturated-fat_100g'];
+  // Construction dynamique de la grille nutritionnelle
+  function buildNutritionGrid() {
+    const core = [
+      { key: 'energy-kcal_100g',      label: L.nutrients.energy,   unit: 'kcal', max: 500,  ok: 200,  warn: 350 },
+      { key: 'sugars_100g',           label: L.nutrients.sugars,   unit: 'g',    max: 50,   ok: 10,   warn: 22  },
+      { key: 'fat_100g',              label: L.nutrients.fat,       unit: 'g',    max: 40,   ok: 10,   warn: 20  },
+      { key: 'saturated-fat_100g',    label: L.nutrients.satfat,   unit: 'g',    max: 20,   ok: 5,    warn: 10  },
+      { key: 'salt_100g',             label: L.nutrients.salt,      unit: 'g',    max: 3,    ok: 0.5,  warn: 1.5 },
+      { key: 'proteins_100g',         label: L.nutrients.proteins, unit: 'g',    max: 30,   ok: 30,   warn: 30  },
+      { key: 'fiber_100g',            label: L.nutrients.fiber,     unit: 'g',    max: 10,   ok: 5,    warn: 10  },
+    ];
 
+    const extraMap = {
+      'carbohydrates_100g':           { label: 'Glucides',          unit: 'g'   },
+      'sodium_100g':                  { label: 'Sodium',            unit: 'g'   },
+      'calcium_100g':                 { label: 'Calcium',           unit: 'mg', factor: 1000 },
+      'magnesium_100g':               { label: 'Magnésium',         unit: 'mg', factor: 1000 },
+      'potassium_100g':               { label: 'Potassium',         unit: 'mg', factor: 1000 },
+      'alcohol_100g':                 { label: 'Alcool',            unit: '% vol' },
+      'caffeine_100g':                { label: 'Caféine',           unit: 'mg', factor: 1000 },
+    };
+
+    let html = core.map(n => {
+      let val = nutr[n.key];
+      if (n.key === 'energy-kcal_100g' && val === undefined && nutr.energy_100g)
+        val = nutr.energy_100g / 4.184;
+      return nutrItem(n.label, val, n.unit, n.max, n.ok, n.warn);
+    }).join('');
+
+    const coreKeys = new Set(core.map(n => n.key));
+    for (const [key, meta] of Object.entries(extraMap)) {
+      if (coreKeys.has(key)) continue;
+      let val = nutr[key];
+      if (val === undefined || val === null) continue;
+      if (meta.factor) val = val * meta.factor;
+      const display = val.toFixed(val < 1 ? 2 : 1);
+      html += `
+        <div class="nutr-item nutr-item-extra">
+          <div class="nutr-label">${esc(meta.label)}</div>
+          <div class="nutr-value">${esc(display)}<span class="nutr-unit">${esc(meta.unit)}</span></div>
+        </div>`;
+    }
+    return html;
+  }
+
+  // Construction des avertissements
   const warningItems = [];
   if (notHalal) warningItems.push({ type:'alert', key:'halal' });
-  else          warningItems.push({ type:'ok',    key:'ok_halal' });
-  if (hasPork && !notHalal)                warningItems.push({ type:'alert', key:'pork' });
-  if (hasGluten)                           warningItems.push({ type:'alert', key:'gluten' });
-  if (hasLactose)                          warningItems.push({ type:'alert', key:'lactose' });
-  if (flags.includes('ultra'))             warningItems.push({ type:'alert', key:'ultra' });
+  else warningItems.push({ type:'ok', key:'ok_halal' });
+  if (hasPork && !notHalal) warningItems.push({ type:'alert', key:'pork' });
+  if (hasGluten) warningItems.push({ type:'alert', key:'gluten' });
+  if (hasLactose) warningItems.push({ type:'alert', key:'lactose' });
+  if (flags.includes('ultra')) warningItems.push({ type:'alert', key:'ultra' });
   if (flags.includes('high_salt') || flags.includes('high_sodium'))
-                                           warningItems.push({ type:'alert', key:'high_sodium' });
-  if (flags.includes('high_satfat'))       warningItems.push({ type:'alert', key:'high_satfat' });
-  if (flags.includes('high_additive'))     warningItems.push({ type:'alert', key:'high_additive' });
-  if (flags.includes('low_calorie'))       warningItems.push({ type:'ok',    key:'low_calorie' });
+    warningItems.push({ type:'alert', key:'high_sodium' });
+  if (flags.includes('high_satfat')) warningItems.push({ type:'alert', key:'high_satfat' });
+  if (flags.includes('high_additive')) warningItems.push({ type:'alert', key:'high_additive' });
+  if (flags.includes('low_calorie')) warningItems.push({ type:'ok', key:'low_calorie' });
 
   const warningsHtml = warningItems.map(w => {
     const [title, desc] = L.warnings[w.key] || ['?', ''];
@@ -609,7 +663,7 @@ const notHalal = (hasPork || hasAlcohol) && !labels.includes('halal');
     </div>
    </div>`;
 
-  const ecoHtml  = buildEcoSection(p, L);
+  const ecoHtml = buildEcoSection(p, L);
   const infoHtml = buildInfoSection(p, L);
 
   const html = `
@@ -629,9 +683,9 @@ const notHalal = (hasPork || hasAlcohol) && !labels.includes('halal');
 
     <div class="section-block">
       <div class="section-title">${esc(L.sections.nutrition)}</div>
-<div class="nutrition-grid">
-  ${buildNutritionGrid(p, L)}
-</div>
+      <div class="nutrition-grid">
+        ${buildNutritionGrid()}
+      </div>
     </div>
 
     <div class="section-block">
