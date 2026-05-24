@@ -324,6 +324,7 @@ const OFF = barcode =>
   `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`)}`;
 const OFF_SEARCH = url =>
   `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+const productCache = new Map();
 /* ── Helpers ── */
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
