@@ -962,7 +962,7 @@ async function tryFetchAlt(catTag, excludeCode, currentRank) {
   const gradeOrder = { a:1, b:2, c:3, d:4, e:5 };
   try {
     const url = `https://world.openfoodfacts.org/api/v2/search?categories_tags=${encodeURIComponent(catTag)}&page_size=50&fields=code,product_name,brands,nutriscore_grade,nova_group,nutriments`;
- const res  = await fetch(OFF_SEARCH(url), { signal: AbortSignal.timeout(8000) });
+ const res = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`, { signal: AbortSignal.timeout(8000) });
     if (!res.ok) return [];
     const data = await res.json();
 
