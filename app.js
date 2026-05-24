@@ -320,14 +320,26 @@ const LANGS = {
 
 let lang = 'fr';
 let lastProduct = null;
-const OFF = barcode =>
-  `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`)}`;
-const OFF_SEARCH = url =>
-  `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
 const productCache = new Map();
+const OFF = barcode => `https://world.openfoodfacts.org/api/v0/product/${encodeURIComponent(barcode)}.json`;
+const OFF_SEARCH = url => url;
 /* ── Helpers ── */
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+async function fetchWithRetry(url, retries = 3) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(12000) });
+      if (res.ok) return res;
+      if (res.status === 429) { await new Promise(r => setTimeout(r, 1200 * (i + 1))); continue; }
+      throw new Error('HTTP ' + res.status);
+    } catch (e) {
+      if (e.name === 'TimeoutError' || i === retries - 1) throw e;
+      await new Promise(r => setTimeout(r, 1200 * (i + 1)));
+    }
+  }
+}
 
 function setLang(l) {
   lang = l;
@@ -371,20 +383,10 @@ async function handleScan() {
     const barcode2 = $('barcodeInput').value.trim().replace(/\s/g, '');
     let product = productCache.get(barcode2);
     if (!product) {
-const res = await fetch(OFF(barcode2), { signal: AbortSignal.timeout(10000) });
-      if (res.status === 429) {
-        await new Promise(r => setTimeout(r, 1500));
-const res2 = await fetch(OFF(barcode2), { signal: AbortSignal.timeout(10000) });
-        if (!res2.ok) throw new Error('HTTP ' + res2.status);
-        const data2 = await res2.json();
-        if (data2.status !== 1 || !data2.product) { showError(LANGS[lang].not_found); return; }
-        product = data2.product;
-      } else {
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        const data = await res.json();
-        if (data.status !== 1 || !data.product) { showError(LANGS[lang].not_found); return; }
-        product = data.product;
-      }
+      const res = await fetchWithRetry(OFF(barcode2));
+      const data = await res.json();
+      if (data.status !== 1 || !data.product) { showError(LANGS[lang].not_found); return; }
+      product = data.product;
       productCache.set(barcode2, product);
     }
     lastProduct = product;
@@ -1364,12 +1366,7 @@ function setCompareMode(on) {
 
 async function fetchProductForCompare(barcode) {
   if (productCache.has(barcode)) return productCache.get(barcode);
- const url = OFF(barcode);
-  let res = await fetch(url, { signal: AbortSignal.timeout(10000) });
-  if (res.status === 429) {
-    await new Promise(r => setTimeout(r, 1500));
-    res = await fetch(url, { signal: AbortSignal.timeout(10000) });
-  }
+  const res = await fetchWithRetry(OFF(barcode));
   const data = await res.json();
   if (data.status !== 1 || !data.product) throw new Error('not_found');
   productCache.set(barcode, data.product);
@@ -1396,10 +1393,9 @@ async function handleCompare() {
   $('loadingBar').classList.add('active');
 
   try {
-    const [pA, pB] = await Promise.all([
-      fetchProductForCompare(bA),
-      fetchProductForCompare(bB),
-    ]);
+const pA = await fetchProductForCompare(bA);
+    await new Promise(r => setTimeout(r, 600));
+    const pB = await fetchProductForCompare(bB);
     showCompareModal(pA, pB);
   } catch (err) {
     console.error(err);
