@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="fr" dir="ltr">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://world.openfoodfacts.org https://prices.openfoodfacts.org https://api.qrserver.com;">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0a0a0f" />
+  <meta name="description" content="Scannez un produit alimentaire et obtenez son analyse nutritionnelle complète en Français, Arabe ou Darija." />
+
+  <!-- PWA / mobile -->
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="FoodLens" />
+  <link rel="apple-touch-icon" href="/icon-192.png" />
+
+  <title>FoodLens — Analyseur Nutritionnel</title>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet" />
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div class="app">
+
+  <!-- Header -->
+  <header class="header">
+    <div class="logo">Food<span>Lens</span></div>
+    <div class="lang-toggle">
+      <button class="lang-btn" data-lang="en">EN</button>
+      <button class="lang-btn active" data-lang="fr">FR</button>
+      <button class="lang-btn"        data-lang="ar">العربية</button>
+      <button class="lang-btn"        data-lang="dr">دارجة</button>
+    </div>
+  </header>
+
+  <!-- Scanner -->
+  <section class="scanner-section">
+    <div class="scanner-card">
+      <div class="loading-bar" id="loadingBar"></div>
+
+      <div class="input-label" id="labelScan">Code-barres</div>
+      <div class="barcode-input-row">
+        <input
+          id="barcodeInput"
+          class="barcode-field"
+          type="text"
+          inputmode="numeric"
+          placeholder="ex: 3017620422003"
+          autocomplete="off"
+          aria-label="Code-barres du produit"
+        />
+        <button class="scan-btn" id="scanBtn" aria-label="Analyser">
+          <div class="scan-icon" aria-hidden="true">
+            <span></span><span></span><span></span>
+          </div>
+          <div class="spinner" id="spinner"></div>
+          <span id="scanBtnText">Analyser</span>
+        </button>
+      </div>
+
+      <div class="quick-examples">
+        <span class="chip-label" id="labelTry">Essayer :</span>
+        <button class="example-chip" data-barcode="3017620422003">🍫 Nutella</button>
+        <button class="example-chip" data-barcode="5449000000996">🥤 Coca-Cola</button>
+        <button class="example-chip" data-barcode="7622300489366">🍪 Oreo</button>
+        <button class="example-chip" data-barcode="8076800105155">🍝 Barilla</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Results -->
+  <main class="result-area" id="resultArea" aria-live="polite"></main>
+
+  <!-- Empty state -->
+  <div class="empty-state" id="emptyState">
+    <div class="empty-icon">🔍</div>
+    <div class="empty-title" id="emptyTitle">Scannez un produit</div>
+    <p class="empty-sub" id="emptySub">Entrez un code-barres pour obtenir une analyse complète en secondes.</p>
+  </div>
+
+  <footer>
+    Données via <a href="https://world.openfoodfacts.org" target="_blank" rel="noopener">Open Food Facts</a> (licence ODbL)
+  </footer>
+</div>
+
+<script src="app.js?v=3"></script>
+</body>
+</html>

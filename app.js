@@ -1,0 +1,1061 @@
+/* ═══════════════════════════════════════════
+   FoodLens — app.js
+   Open Food Facts barcode analyser
+   Français / العربية / دارجة
+═══════════════════════════════════════════ */
+
+'use strict';
+
+/* ── i18n ── */
+const LANGS = {
+  en: {
+    labelScan: 'Barcode',
+    scanBtn:   'Analyze',
+    labelTry:  'Try :',
+    emptyTitle:'Scan a product',
+    emptySub:  'Enter a barcode to get a complete analysis in seconds.',
+    verdict:   { good:'✅ Good choice', ok:'⚠️ Acceptable', bad:'❌ Avoid' },
+    sections:  { nutrition:'Nutritional values (per 100g)', warnings:'Alerts & Restrictions', ingredients:'Ingredients', alternative:'Best alternative' },
+    warnings: {
+      halal:        ['🚫 Non-Halal detected',    'This product may contain pork or alcohol.'],
+      gluten:       ['🌾 Contains Gluten',       'Not suitable for celiac people.'],
+      lactose:      ['🥛 Contains Lactose',      'May cause discomfort for those intolerant.'],
+      pork:         ['🐷 Pork derivatives',      'Gelatin or pork animal fats detected.'],
+      ultra:        ['⚠️ Ultra-processed (NOVA 4)', 'Additives, preservatives and artificial flavors.'],
+      ok_halal:     ['✅ Probably Halal',        'No pork or alcohol ingredients detected.'],
+      high_sodium:  ['🧂 High salt',             'High salt content, consume in moderation.'],
+      high_satfat:  ['🧈 Saturated fats',        'High level of saturated fatty acids.'],
+      high_additive:['🧪 Many additives',        'Colorings, preservatives or sweeteners detected.'],
+      low_calorie:  ['💧 Very low calorie',      'This product provides almost no energy.'],
+    },
+    nutrients: { energy:'Energy', sugars:'Sugars', fat:'Fat', salt:'Salt', proteins:'Proteins', fiber:'Fiber', satfat:'Saturated fat' },
+    reasons: {
+      high_sugar:   (v) => `Too sugary — ${v.toFixed(1)} g sugars/100g`,
+      high_fat:     (v) => `Too fatty — ${v.toFixed(1)} g fat/100g`,
+      high_satfat:  (v) => `High saturated fats — ${v.toFixed(1)} g/100g`,
+      high_salt:    (v) => `Too salty — ${v.toFixed(1)} g salt/100g`,
+      ultra:        ()  => 'Ultra-processed food (NOVA 4)',
+      good_prot:    (v) => `Good source of protein — ${v.toFixed(1)} g/100g`,
+      balanced:     ()  => 'Balanced nutritional profile',
+      low_calorie:  ()  => 'Very low calorie product (water, light sauce…)',
+      default:      ()  => 'Check details below',
+    },
+    alt_title:       'Best alternative',
+    alt_best_label:  '✅ Best choice',
+    alt_others:      '📋 Other options',
+    alt_loading:     'Searching…',
+    alt_none:        '⚠️ No alternative found — choose unprocessed foods.',
+    alt_already_best:'✅ This is the best choice available. Keep it up!',
+    alt_bad_no_alt:  '📋 No alternative found in this category. Check the nutritional details above.',
+    alt_top_count:   (n) => `Top ${n} alternatives`,
+    not_found:    'Product not found.\nCheck the barcode or try another product.',
+    net_error:    'Network error — check your connection.',
+    nova_labels:  ['', 'Unprocessed', 'Culinary ingredients', 'Processed', 'Ultra-processed'],
+    share_title:  'Share this product',
+    share_sub:    'Scan to analyze this product',
+    share_copy:   'Copy',
+    share_copied: '✓ Copied!',
+    dir: 'ltr',
+    sections_extra: { product_info: 'Product information', eco: 'Environmental impact' },
+    labels: {
+      quantity:    'Quantity',
+      packaging:   'Packaging',
+      origin:      'Origin',
+      countries:   'Sold in',
+      triman:      'Triman',
+      triman_yes:  '♻️ Recyclable (Triman)',
+      triman_no:   'No Triman label',
+      green_score: 'Green-Score',
+      carbon:      'Carbon footprint',
+      carbon_unit: 'g CO₂ eq. / kg',
+      unknown:     'Not specified',
+    },
+    green_labels: ['', 'A — Very low impact', 'B — Low impact', 'C — Moderate impact', 'D — High impact', 'E — Very high impact'],
+  },
+  fr: {
+    labelScan: 'Code-barres',
+    scanBtn:   'Analyser',
+    labelTry:  'Essayer :',
+    emptyTitle:'Scannez un produit',
+    emptySub:  'Entrez un code-barres pour obtenir une analyse complète en secondes.',
+    verdict:   { good:'✅ Bon choix', ok:'⚠️ Acceptable', bad:'❌ À éviter' },
+    sections:  { nutrition:'Valeurs nutritionnelles (pour 100 g)', warnings:'Alertes & Restrictions', ingredients:'Ingrédients', alternative:'Meilleure alternative' },
+    warnings: {
+      halal:        ['🚫 Non Halal détecté',    'Ce produit peut contenir du porc ou de l\'alcool.'],
+      gluten:       ['🌾 Contient du Gluten',   'Non adapté aux personnes cœliaques.'],
+      lactose:      ['🥛 Contient du Lactose',  'Peut provoquer des inconforts chez les intolérants.'],
+      pork:         ['🐷 Dérivés de porc',      'Gélatine ou graisses animales porcines détectées.'],
+      ultra:        ['⚠️ Ultra-transformé (NOVA 4)', 'Additifs, conservateurs et arômes artificiels.'],
+      ok_halal:     ['✅ Probablement Halal',   'Aucun ingrédient porcin ou alcool détecté.'],
+      high_sodium:  ['🧂 Très salé',            'Teneur en sel élevée, à consommer avec modération.'],
+      high_satfat:  ['🧈 Graisses saturées',    'Taux élevé d\'acides gras saturés.'],
+      high_additive:['🧪 Nombreux additifs',    'Colorants, conservateurs ou édulcorants détectés.'],
+      low_calorie:  ['💧 Très peu calorique',   'Ce produit n\'apporte quasiment pas d\'énergie.'],
+    },
+    nutrients: { energy:'Énergie', sugars:'Sucres', fat:'Lipides', salt:'Sel', proteins:'Protéines', fiber:'Fibres', satfat:'Graisses sat.' },
+    reasons: {
+      high_sugar:   (v) => `Trop sucré — ${v.toFixed(1)} g de sucres/100 g`,
+      high_fat:     (v) => `Trop gras — ${v.toFixed(1)} g de lipides/100 g`,
+      high_satfat:  (v) => `Graisses saturées élevées — ${v.toFixed(1)} g/100 g`,
+      high_salt:    (v) => `Trop salé — ${v.toFixed(1)} g de sel/100 g`,
+      ultra:        ()  => 'Aliment ultra-transformé (NOVA 4)',
+      good_prot:    (v) => `Bonne source de protéines — ${v.toFixed(1)} g/100 g`,
+      balanced:     ()  => 'Profil nutritionnel équilibré',
+      low_calorie:  ()  => 'Produit très peu calorique (eau, sauce légère…)',
+      default:      ()  => 'Vérifiez les détails ci-dessous',
+    },
+    alt_title:       'Meilleure alternative',
+    alt_best_label:  '✅ Meilleur choix',
+    alt_others:      '📋 Autres options',
+    alt_loading:     'Recherche en cours…',
+    alt_none:        '⚠️ Aucune alternative trouvée — privilégiez les aliments non transformés.',
+    alt_already_best:'✅ C\'est le meilleur choix disponible. Continuez !',
+    alt_bad_no_alt: '📋 Aucune alternative trouvée dans cette catégorie. Consultez les détails nutritionnels ci-dessus.',
+    alt_top_count:   (n) => `Top ${n} alternatives`,
+    not_found:    'Produit introuvable.\nVérifiez le code-barres ou essayez un autre produit.',
+    net_error:    'Erreur réseau — vérifiez votre connexion.',
+    nova_labels:  ['', 'Peu transformé', 'Ingrédients culinaires', 'Transformé', 'Ultra-transformé'],
+    share_title:  'Partager ce produit',
+    share_sub:    'Scannez pour analyser ce produit',
+    share_copy:   'Copier',
+    share_copied: '✓ Copié !',
+    dir: 'ltr',
+    sections_extra: { product_info: 'Informations produit', eco: 'Impact environnemental' },
+    labels: {
+      quantity:    'Quantité',
+      packaging:   'Emballage',
+      origin:      'Origine',
+      countries:   'Vendu en',
+      triman:      'Triman',
+      triman_yes:  '♻️ Recyclable (Triman)',
+      triman_no:   'Pas de label Triman',
+      green_score: 'Green-Score',
+      carbon:      'Empreinte carbone',
+      carbon_unit: 'g CO₂ éq. / kg',
+      unknown:     'Non renseigné',
+    },
+    green_labels: ['', 'A — Très faible impact', 'B — Faible impact', 'C — Impact modéré', 'D — Impact élevé', 'E — Très fort impact'],
+  },
+  ar: {
+    labelScan: 'الباركود',
+    scanBtn:   'تحليل',
+    labelTry:  'جرّب :',
+    emptyTitle:'امسح منتجاً',
+    emptySub:  'أدخل الباركود للحصول على تحليل كامل في ثوانٍ.',
+    verdict:   { good:'✅ اختيار جيد', ok:'⚠️ مقبول', bad:'❌ تجنّبه' },
+    sections:  { nutrition:'القيم الغذائية (لكل 100 غ)', warnings:'تحذيرات وقيود', ingredients:'المكونات', alternative:'بديل أفضل' },
+    warnings: {
+      halal:        ['🚫 غير حلال',        'قد يحتوي على لحم الخنزير أو الكحول.'],
+      gluten:       ['🌾 يحتوي على الغلوتين','غير مناسب لمرضى الداء البطني.'],
+      lactose:      ['🥛 يحتوي على اللاكتوز','قد يسبب عسراً هضمياً للحساسين.'],
+      pork:         ['🐷 مشتقات الخنزير',  'تم الكشف عن جيلاتين أو دهون خنزير.'],
+      ultra:        ['⚠️ معالج بشدة (NOVA 4)','يحتوي على مضافات وأصباغ صناعية.'],
+      ok_halal:     ['✅ على الأرجح حلال', 'لم يتم الكشف عن مكونات خنزير أو كحول.'],
+      high_sodium:  ['🧂 ملح مرتفع',       'محتوى ملح عالٍ، يُنصح بالاعتدال.'],
+      high_satfat:  ['🧈 دهون مشبعة',      'نسبة عالية من الأحماض الدهنية المشبعة.'],
+      high_additive:['🧪 مضافات كثيرة',    'ملونات أو حوافظ أو محليات صناعية.'],
+      low_calorie:  ['💧 منخفض السعرات',   'هذا المنتج يكاد لا يحتوي على طاقة.'],
+    },
+    nutrients: { energy:'طاقة', sugars:'سكريات', fat:'دهون', salt:'ملح', proteins:'بروتين', fiber:'ألياف', satfat:'دهون مشبعة' },
+    reasons: {
+      high_sugar:   (v) => `سكر مرتفع — ${v.toFixed(1)} غ/100 غ`,
+      high_fat:     (v) => `دهون مرتفعة — ${v.toFixed(1)} غ/100 غ`,
+      high_satfat:  (v) => `دهون مشبعة — ${v.toFixed(1)} غ/100 غ`,
+      high_salt:    (v) => `ملح زائد — ${v.toFixed(1)} غ/100 غ`,
+      ultra:        ()  => 'غذاء مُعالَج بشدة (NOVA 4)',
+      good_prot:    (v) => `غني بالبروتين — ${v.toFixed(1)} غ/100 غ`,
+      balanced:     ()  => 'قيم غذائية متوازنة',
+      low_calorie:  ()  => 'منتج منخفض السعرات جداً (ماء، صلصة خفيفة…)',
+      default:      ()  => 'راجع التفاصيل أدناه',
+    },
+    alt_title:       'أفضل بديل',
+    alt_best_label:  '✅ الخيار الأفضل',
+    alt_others:      '📋 خيارات أخرى',
+    alt_loading:     'جارٍ البحث…',
+    alt_none:        '⚠️ لا يوجد بديل — يُنصح باختيار أغذية طبيعية غير مصنّعة.',
+    alt_already_best:'✅ هذا هو الخيار الأفضل المتاح. استمر في شرائه!',
+    alt_bad_no_alt: '📋 لم يتم العثور على بديل في هذه الفئة. راجع التفاصيل الغذائية أعلاه.',
+    alt_top_count:   (n) => `أفضل ${n} بدائل`,
+    not_found:    'المنتج غير موجود.\nتحقق من الباركود أو جرّب منتجاً آخر.',
+    net_error:    'خطأ في الشبكة — تحقق من اتصالك.',
+    nova_labels:  ['', 'طبيعي', 'مكونات طهي', 'مُعالَج', 'مُعالَج بشدة'],
+    share_title:  'مشاركة المنتج',
+    share_sub:    'امسح للتحليل',
+    share_copy:   'نسخ',
+    share_copied: '✓ تم النسخ!',
+    dir: 'rtl',
+    sections_extra: { product_info: 'معلومات المنتج', eco: 'الأثر البيئي' },
+    labels: {
+      quantity:    'الكمية',
+      packaging:   'التغليف',
+      origin:      'المنشأ',
+      countries:   'يُباع في',
+      triman:      'Triman',
+      triman_yes:  '♻️ قابل لإعادة التدوير (Triman)',
+      triman_no:   'لا يوجد ختم Triman',
+      green_score: 'Green-Score',
+      carbon:      'البصمة الكربونية',
+      carbon_unit: 'غ CO₂ / كغ',
+      unknown:     'غير محدد',
+    },
+    green_labels: ['', 'A — تأثير منخفض جداً', 'B — تأثير منخفض', 'C — تأثير معتدل', 'D — تأثير عالٍ', 'E — تأثير عالٍ جداً'],
+  },
+  dr: {
+    labelScan: 'الباركود',
+    scanBtn:   'حلّل',
+    labelTry:  'جرّب :',
+    emptyTitle:'سكان شي منتوج',
+    emptySub:  'دخل الباركود باش تشوف التحليل الكامل ف ثواني.',
+    verdict:   { good:'✅ خيار مزيان', ok:'⚠️ مقبول', bad:'❌ خليه' },
+    sections:  { nutrition:'القيم الغذائية (ل 100 غ)', warnings:'تحذيرات وقيود', ingredients:'المكونات', alternative:'بديل أحسن' },
+    warnings: {
+      halal:        ['🚫 مشي حلال',      'ممكن فيه خنزير ولا كحول.'],
+      gluten:       ['🌾 فيه جلوتين',    'مشي مناسب لمن عندهم حساسية.'],
+      lactose:      ['🥛 فيه لاكتوز',    'ممكن يولد مشاكل لي عندهم عدم تحمل.'],
+      pork:         ['🐷 فيه خنزير',     'كاين جيلاتين ولا دهون الخنزير.'],
+      ultra:        ['⚠️ مصنّع بزاف (NOVA 4)','فيه ملونات وحوافظ ومواد صناعية.'],
+      ok_halal:     ['✅ غالباً حلال',   'ما تلقاوش خنزير ولا كحول.'],
+      high_sodium:  ['🧂 فيه ملح بزاف', 'كمية الملح عالية، خودها بالقدر.'],
+      high_satfat:  ['🧈 دهون مشبعة',   'نسبة عالية من الدهون المشبعة.'],
+      high_additive:['🧪 فيه مضافات',   'ملونات ولا حوافظ ولا محليات صناعية.'],
+      low_calorie:  ['💧 سعرات قليلة',  'هاد المنتوج ما فيهش تقريباً شي طاقة.'],
+    },
+    nutrients: { energy:'طاقة', sugars:'سكر', fat:'دهون', salt:'ملح', proteins:'بروتين', fiber:'ألياف', satfat:'دهون مشبعة' },
+    reasons: {
+      high_sugar:   (v) => `فيه سكر بزاف — ${v.toFixed(1)} غ/100 غ`,
+      high_fat:     (v) => `فيه دهون بزاف — ${v.toFixed(1)} غ/100 غ`,
+      high_satfat:  (v) => `دهون مشبعة — ${v.toFixed(1)} غ/100 غ`,
+      high_salt:    (v) => `فيه ملح بزاف — ${v.toFixed(1)} غ/100 غ`,
+      ultra:        ()  => 'منتوج مصنّع بزاف (NOVA 4)',
+      good_prot:    (v) => `غني بالبروتين — ${v.toFixed(1)} غ/100 غ`,
+      balanced:     ()  => 'قيم غذائية متوازنة',
+      low_calorie:  ()  => 'منتوج ما فيهش سعرات (ماء، صلصة خفيفة…)',
+      default:      ()  => 'شوف التفاصيل من تحت',
+    },
+    alt_title:       'أحسن بديل',
+    alt_best_label:  '✅ الخيار الأحسن',
+    alt_others:      '📋 خيارات أخرى',
+    alt_loading:     'كيقلّب…',
+    alt_none:        '⚠️ ما لقاو شي بديل — خير تاكل حوايج طبيعية.',
+    alt_already_best:'✅ هاد المنتوج هو الأحسن الموجود. زيد شريه!',
+    alt_bad_no_alt: '📋 ما لقيناش بديل فهاد الفئة. شوف التفاصيل الغذائية من فوق.',
+    alt_top_count:   (n) => `أحسن ${n} بدائل`,
+    not_found:    'ما تلقيناشه.\nتأكد من الباركود ولا جرب منتوج آخر.',
+    net_error:    'خطأ ف الاتصال — تحقق من النت ديالك.',
+    nova_labels:  ['', 'طبيعي', 'مكونات الطبخ', 'مصنّع', 'مصنّع بزاف'],
+    share_title:  'شارك المنتوج',
+    share_sub:    'سكان باش تحلل',
+    share_copy:   'نسخ',
+    share_copied: '✓ تنسخ!',
+    dir: 'rtl',
+    sections_extra: { product_info: 'معلومات المنتوج', eco: 'التأثير البيئي' },
+    labels: {
+      quantity:    'الكمية',
+      packaging:   'التغليف',
+      origin:      'الأصل',
+      countries:   'يتباع في',
+      triman:      'Triman',
+      triman_yes:  '♻️ قابل للتدوير (Triman)',
+      triman_no:   'ما كاينش ختم Triman',
+      green_score: 'Green-Score',
+      carbon:      'البصمة الكربونية',
+      carbon_unit: 'غ CO₂ / كغ',
+      unknown:     'ما معروفش',
+    },
+    green_labels: ['', 'A — تأثير خفيف بزاف', 'B — تأثير خفيف', 'C — تأثير معتدل', 'D — تأثير عالي', 'E — تأثير عالي بزاف'],
+  },
+};
+
+let lang = 'fr';
+let lastProduct = null;
+
+/* ── Helpers ── */
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+function setLang(l) {
+  lang = l;
+  const L = LANGS[l];
+  document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b.dataset.lang === l));
+  document.documentElement.setAttribute('dir', L.dir);
+  $('labelScan').textContent    = L.labelScan;
+  $('scanBtnText').textContent  = L.scanBtn;
+  $('labelTry').textContent     = L.labelTry;
+  $('emptyTitle').textContent   = L.emptyTitle;
+  $('emptySub').textContent     = L.emptySub;
+  if (lastProduct) renderProduct(lastProduct);
+}
+
+/* ── Scan ── */
+async function handleScan() {
+  const barcode = $('barcodeInput').value.trim().replace(/\s/g, '');
+  if (!barcode) return;
+
+  const loadingBar = $('loadingBar');
+  const btn        = $('scanBtn');
+  const spinner    = $('spinner');
+  const scanText   = $('scanBtnText');
+  const resultArea = $('resultArea');
+  const emptyState = $('emptyState');
+
+  loadingBar.classList.add('active');
+  btn.disabled = true;
+  spinner.classList.add('active');
+  scanText.classList.add('scan-btn-text-hidden');
+  emptyState.classList.add('empty-state-hidden');
+  resultArea.classList.remove('visible');
+  resultArea.innerHTML = '';
+
+  try {
+    const res = await fetch(
+      `https://world.openfoodfacts.org/api/v0/product/${encodeURIComponent(barcode)}.json`,
+      { signal: AbortSignal.timeout(10000) }
+    );
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+
+    if (data.status !== 1 || !data.product) {
+      showError(LANGS[lang].not_found);
+      return;
+    }
+
+    lastProduct = data.product;
+    renderProduct(data.product);
+  } catch (e) {
+    showError(e.name === 'TimeoutError' ? LANGS[lang].net_error : LANGS[lang].not_found);
+  } finally {
+    loadingBar.classList.remove('active');
+    btn.disabled = false;
+    spinner.classList.remove('active');
+    scanText.classList.remove('scan-btn-text-hidden');
+  }
+}
+
+/* ── Error ── */
+function showError(msg) {
+  const resultArea = $('resultArea');
+  resultArea.innerHTML = `<div class="error-card">${esc(msg).replace(/\n/g, '<br>')}</div>`;
+  resultArea.classList.add('visible');
+}
+
+/* ══════════════════════════════════════════════
+   VERDICT ENGINE
+══════════════════════════════════════════════ */
+function computeVerdict(p) {
+  const nutr    = p.nutriments || {};
+  const nutri   = (p.nutriscore_grade || '').toUpperCase();
+  const nova    = parseInt(p.nova_group) || 0;
+  const ingr    = (p.ingredients_text || '').toLowerCase();
+
+  const energy   = nutr['energy-kcal_100g'] ?? (nutr.energy_100g ? nutr.energy_100g / 4.184 : undefined);
+  const sugar    = nutr.sugars_100g;
+  const fat      = nutr.fat_100g;
+  const satfat   = nutr['saturated-fat_100g'];
+  const salt     = nutr.salt_100g;
+  const sodium   = nutr.sodium_100g ?? (salt !== undefined ? salt / 2.5 : undefined);
+  const proteins = nutr.proteins_100g;
+  const fiber    = nutr.fiber_100g;
+
+  const totalNutrients = [sugar, fat, proteins].filter(v => v !== undefined);
+  const sumNutrients   = totalNutrients.reduce((a, b) => a + b, 0);
+  const isLowCalorie   = (energy !== undefined && energy < 15) ||
+                         (totalNutrients.length >= 2 && sumNutrients < 2);
+
+  const additiveCount = (ingr.match(/\be\d{3,4}[a-z]?\b/g) || []).length;
+
+  const flags = [];
+  if (isLowCalorie)                                      flags.push('low_calorie');
+  if (nova === 4)                                        flags.push('ultra');
+  if (sugar  !== undefined && sugar  > 22)               flags.push('high_sugar');
+  if (fat    !== undefined && fat    > 20)               flags.push('high_fat');
+  if (satfat !== undefined && satfat > 10)               flags.push('high_satfat');
+  if (salt   !== undefined && salt   > 1.5)              flags.push('high_salt');
+  if (sodium !== undefined && sodium > 0.6 && !flags.includes('high_salt')) flags.push('high_sodium');
+  if (additiveCount >= 4)                                flags.push('high_additive');
+
+  let score = 0;
+  const nutriScore = { A: 3, B: 2, C: 0, D: -2, E: -3 };
+  if (nutri && nutriScore[nutri] !== undefined) score += nutriScore[nutri];
+
+  if (flags.includes('ultra'))         score -= 3;
+  if (flags.includes('high_sugar'))    score -= 2;
+  if (flags.includes('high_satfat'))   score -= 2;
+  if (flags.includes('high_fat'))      score -= 1;
+  if (flags.includes('high_salt'))     score -= 2;
+  if (flags.includes('high_sodium'))   score -= 1;
+  if (flags.includes('high_additive')) score -= 2;
+  if (fiber    !== undefined && fiber    >= 3)  score += 1;
+  if (proteins !== undefined && proteins >= 10) score += 1;
+  if (nova >= 1 && nova <= 2)                   score += 1;
+
+  if (flags.includes('low_calorie')) {
+    return { verdictKey: 'ok', flags, energy, sugar, fat, satfat, salt, proteins, fiber,
+             verdictReason: LANGS[lang].reasons.low_calorie() };
+  }
+
+  const verdictKey = score >= 3 ? 'good' : score >= 0 ? 'ok' : 'bad';
+  const R = LANGS[lang].reasons;
+  const verdictReason =
+    flags.includes('high_sugar')   ? R.high_sugar(sugar)   :
+    flags.includes('ultra')        ? R.ultra()              :
+    flags.includes('high_satfat')  ? R.high_satfat(satfat) :
+    flags.includes('high_fat')     ? R.high_fat(fat)        :
+    flags.includes('high_salt')    ? R.high_salt(salt)      :
+    verdictKey === 'good' && proteins >= 10 ? R.good_prot(proteins) :
+    verdictKey === 'good'          ? R.balanced()           :
+    R.default();
+
+  return { verdictKey, flags, energy, sugar, fat, satfat, salt, proteins, fiber, verdictReason };
+}
+
+function buildNutritionGrid(p, L) {
+  const nutr = p.nutriments || {};
+
+  // Core nutrients — always shown first if available, with proper labels + thresholds
+  const core = [
+    { key: 'energy-kcal_100g',      label: L.nutrients.energy,   unit: 'kcal', max: 500,  ok: 200,  warn: 350 },
+    { key: 'sugars_100g',           label: L.nutrients.sugars,   unit: 'g',    max: 50,   ok: 10,   warn: 22  },
+    { key: 'fat_100g',              label: L.nutrients.fat,       unit: 'g',    max: 40,   ok: 10,   warn: 20  },
+    { key: 'saturated-fat_100g',    label: L.nutrients.satfat,   unit: 'g',    max: 20,   ok: 5,    warn: 10  },
+    { key: 'salt_100g',             label: L.nutrients.salt,      unit: 'g',    max: 3,    ok: 0.5,  warn: 1.5 },
+    { key: 'proteins_100g',         label: L.nutrients.proteins, unit: 'g',    max: 30,   ok: 30,   warn: 30  },
+    { key: 'fiber_100g',            label: L.nutrients.fiber,     unit: 'g',    max: 10,   ok: 5,    warn: 10  },
+  ];
+
+  // Extra nutrients — shown only if present in the product data
+  const extraMap = {
+    'carbohydrates_100g':           { label: 'Glucides',          unit: 'g'   },
+    'sodium_100g':                  { label: 'Sodium',            unit: 'g'   },
+    'calcium_100g':                 { label: 'Calcium',           unit: 'mg', factor: 1000 },
+    'iron_100g':                    { label: 'Fer',               unit: 'mg', factor: 1000 },
+    'magnesium_100g':               { label: 'Magnésium',         unit: 'mg', factor: 1000 },
+    'potassium_100g':               { label: 'Potassium',         unit: 'mg', factor: 1000 },
+    'zinc_100g':                    { label: 'Zinc',              unit: 'mg', factor: 1000 },
+    'phosphorus_100g':              { label: 'Phosphore',         unit: 'mg', factor: 1000 },
+    'vitamin-c_100g':               { label: 'Vitamine C',        unit: 'mg', factor: 1000 },
+    'vitamin-d_100g':               { label: 'Vitamine D',        unit: 'µg', factor: 1000000 },
+    'vitamin-b12_100g':             { label: 'Vitamine B12',      unit: 'µg', factor: 1000000 },
+    'vitamin-a_100g':               { label: 'Vitamine A',        unit: 'µg', factor: 1000000 },
+    'omega-3-fat_100g':             { label: 'Oméga-3',           unit: 'g'   },
+    'trans-fat_100g':               { label: 'Graisses trans',    unit: 'g'   },
+    'cholesterol_100g':             { label: 'Cholestérol',       unit: 'mg', factor: 1000 },
+    'alcohol_100g':                 { label: 'Alcool',            unit: 'g'   },
+    'caffeine_100g':                { label: 'Caféine',           unit: 'mg', factor: 1000 },
+    'fluoride_100g':                { label: 'Fluor',             unit: 'mg', factor: 1000 },
+  };
+
+  // Render core first
+  let html = core.map(n => {
+    let val = nutr[n.key];
+    // fallback for energy
+    if (n.key === 'energy-kcal_100g' && val === undefined && nutr.energy_100g)
+      val = nutr.energy_100g / 4.184;
+    return nutrItem(n.label, val, n.unit, n.max, n.ok, n.warn);
+  }).join('');
+
+  // Then extras — only if present and not already in core
+  const coreKeys = new Set(core.map(n => n.key));
+  for (const [key, meta] of Object.entries(extraMap)) {
+    if (coreKeys.has(key)) continue;
+    let val = nutr[key];
+    if (val === undefined || val === null) continue;
+    if (meta.factor) val = val * meta.factor; // convert to display unit
+    const display = (val !== undefined && val !== null) ? val.toFixed(val < 1 ? 2 : 1) : '—';
+    html += `
+      <div class="nutr-item nutr-item-extra">
+        <div class="nutr-label">${esc(meta.label)}</div>
+        <div class="nutr-value">${esc(display)}<span class="nutr-unit">${esc(meta.unit)}</span></div>
+      </div>`;
+  }
+
+  return html;
+}
+
+/* ── Render ── */
+function renderProduct(p) {
+  const L    = LANGS[lang];
+  const nutr = p.nutriments || {};
+  const nutri = (p.nutriscore_grade || '').toUpperCase();
+  const nova  = parseInt(p.nova_group) || 0;
+
+  const { verdictKey, flags, energy, sugar, fat, satfat, salt, proteins, fiber, verdictReason }
+    = computeVerdict(p);
+
+  // Remplacer toutes les détections actuelles par ce bloc :
+
+const productName = (p.product_name || '').toLowerCase();
+const genericName = (p.generic_name || '').toLowerCase();
+const ingr = (p.ingredients_text || '').toLowerCase();
+const categories = (p.categories_tags || []).join(' ').toLowerCase();
+const labels = (p.labels_tags || []).join(' ').toLowerCase();
+const allergens = (p.allergens_tags || []).join(' ').toLowerCase();
+const traces = (p.traces_tags || []).join(' ').toLowerCase();
+
+// specific_ingredients (très fiable)
+const specificIngredients = (p.specific_ingredients || [])
+  .map(i => (i.ingredient || i.id || '').toLowerCase())
+  .join(' ');
+
+// --- PORC ---
+const porkPattern = /\b(porc|pork|lard|gelatine|gélatine|saindoux|jambon|cochon|porcine|pig|bacon|ham)\b/i;
+const hasPork = porkPattern.test(ingr)
+             || porkPattern.test(specificIngredients)
+             || porkPattern.test(categories)
+             || porkPattern.test(labels)
+             || (porkPattern.test(productName))
+             || (porkPattern.test(genericName));
+
+// --- ALCOOL ---
+const alcoholPattern = /\b(alcool|alcohol|vin|wine|bier|beer|bière|whisky|vodka|rhum|rum|cidre|cider|champagne)\b/i;
+const hasAlcohol = alcoholPattern.test(ingr)
+                || alcoholPattern.test(specificIngredients)
+                || alcoholPattern.test(categories)
+                || alcoholPattern.test(productName);
+
+// --- GLUTEN ---
+const glutenPattern = /\b(gluten|blé|wheat|orge|barley|seigle|rye|avoine|oats|épeautre|spelt|kamut)\b/i;
+const hasGluten = glutenPattern.test(ingr)
+               || glutenPattern.test(specificIngredients)
+               || allergens.includes('gluten')
+               || traces.includes('gluten');
+
+// --- LACTOSE ---
+const lactosePattern = /\b(lait|milk|lactose|lactos|crème|cream|beurre|butter|fromage|cheese|yogourt|yogurt|petit-lait|whey)\b/i;
+const hasLactose = lactosePattern.test(ingr)
+                 || lactosePattern.test(specificIngredients)
+                 || allergens.includes('milk')
+                 || traces.includes('milk');
+
+// --- HALAL ---
+const notHalal = (hasPork || hasAlcohol) && !labels.includes('halal');
+
+  const nutriBadge = nutri
+    ? `<span class="badge badge-nutri-${nutri.toLowerCase()}">Nutri-Score ${nutri}</span>`
+    : '';
+  const novaLabel = nova ? L.nova_labels[Math.min(nova, 4)] : '';
+  const novaBadge = nova
+    ? `<span class="badge badge-nova-${Math.min(nova,4)}">NOVA ${nova} — ${esc(novaLabel)}</span>`
+    : '';
+
+  const imgUrl = p.image_front_small_url || p.image_front_url || '';
+  const imgHtml = imgUrl
+    ? `<img class="product-image" src="${esc(imgUrl)}" alt="" loading="lazy">`
+    : `<div class="product-no-image">🥫</div>`;
+
+  function barHtml(val, max, ok, warn) {
+    if (val === undefined || val === null) return '';
+    const pct = Math.min((val / max) * 100, 100).toFixed(1);
+    const cls = val <= ok ? 'fill-green' : val <= warn ? 'fill-warn' : 'fill-red';
+    return `<div class="nutr-bar"><div class="nutr-fill ${cls}" data-width="${pct}"></div></div>`;
+  }
+  function nutrItem(label, val, unit, max, ok, warn) {
+    const display = (val !== undefined && val !== null) ? val.toFixed(1) : '—';
+    return `
+      <div class="nutr-item">
+        <div class="nutr-label">${esc(label)}</div>
+        <div class="nutr-value">${esc(display)}<span class="nutr-unit">${esc(unit)}</span></div>
+        ${val !== undefined ? barHtml(val, max, ok, warn) : ''}
+      </div>`;
+  }
+
+  const N = L.nutrients;
+  const satfatVal = nutr['saturated-fat_100g'];
+
+  const warningItems = [];
+  if (notHalal) warningItems.push({ type:'alert', key:'halal' });
+  else          warningItems.push({ type:'ok',    key:'ok_halal' });
+  if (hasPork && !notHalal)                warningItems.push({ type:'alert', key:'pork' });
+  if (hasGluten)                           warningItems.push({ type:'alert', key:'gluten' });
+  if (hasLactose)                          warningItems.push({ type:'alert', key:'lactose' });
+  if (flags.includes('ultra'))             warningItems.push({ type:'alert', key:'ultra' });
+  if (flags.includes('high_salt') || flags.includes('high_sodium'))
+                                           warningItems.push({ type:'alert', key:'high_sodium' });
+  if (flags.includes('high_satfat'))       warningItems.push({ type:'alert', key:'high_satfat' });
+  if (flags.includes('high_additive'))     warningItems.push({ type:'alert', key:'high_additive' });
+  if (flags.includes('low_calorie'))       warningItems.push({ type:'ok',    key:'low_calorie' });
+
+  const warningsHtml = warningItems.map(w => {
+    const [title, desc] = L.warnings[w.key] || ['?', ''];
+    return `
+      <div class="warning-item ${w.type === 'ok' ? 'warn-ok' : 'warn-alert'}">
+        <div class="warning-dot ${w.type === 'ok' ? 'dot-green' : 'dot-red'}"></div>
+        <div class="warning-text"><strong>${esc(title)}</strong>${esc(desc)}</div>
+      </div>`;
+  }).join('');
+
+  const ingText = p.ingredients_text
+    ? `<div class="section-block">
+        <div class="section-title">${esc(L.sections.ingredients)}</div>
+        <div class="ingredients-box">
+          <div class="ingredients-text">${esc(p.ingredients_text.slice(0, 400))}${p.ingredients_text.length > 400 ? '…' : ''}</div>
+        </div>
+       </div>`
+    : '';
+
+  const altHtml = `<div class="section-block" id="altSection">
+    <div class="section-title">${esc(L.sections.alternative)}</div>
+    <div id="altContainer">
+      <div class="alt-card alt-card-best" id="altCard" role="button" tabindex="0">
+        <div class="alt-icon">${getCategoryEmoji(p)}</div>
+        <div class="alt-info">
+          <div class="alt-label" id="altLabel">${esc(L.alt_best_label)}</div>
+          <div class="alt-name" id="altName">${esc(L.alt_loading)}</div>
+          <div class="alt-brand" id="altBrand"></div>
+        </div>
+        <div class="alt-arrow" id="altArrow">→</div>
+      </div>
+      <div id="altOthers" style="display:none"></div>
+      <div id="altSeenAll" style="display:none;text-align:center;font-size:.8rem;color:var(--c-muted);padding:.5rem 0"></div>
+    </div>
+   </div>`;
+
+  const ecoHtml  = buildEcoSection(p, L);
+  const infoHtml = buildInfoSection(p, L);
+
+  const html = `
+    <div class="product-header">
+      ${imgHtml}
+      <div class="product-info">
+        <div class="product-name">${esc(p.product_name || p.product_name_fr || '—')}</div>
+        <div class="product-brand">${esc(p.brands || '')}</div>
+        <div class="badges-row">${nutriBadge}${novaBadge}</div>
+      </div>
+    </div>
+
+    <div class="verdict-card verdict-${verdictKey}">
+      <div class="verdict-label">${L.verdict[verdictKey]}</div>
+      <div class="verdict-reason">${esc(verdictReason)}</div>
+    </div>
+
+    <div class="section-block">
+      <div class="section-title">${esc(L.sections.nutrition)}</div>
+<div class="nutrition-grid">
+  ${buildNutritionGrid(p, L)}
+</div>
+    </div>
+
+    <div class="section-block">
+      <div class="section-title">${esc(L.sections.warnings)}</div>
+      <div class="warnings-list">${warningsHtml}</div>
+    </div>
+
+    ${ingText}
+    ${infoHtml}
+    ${ecoHtml}
+    ${altHtml}
+
+    <div class="share-row">
+      <button class="share-qr-btn" id="shareQrBtn">📤 ${esc(L.share_title)}</button>
+    </div>
+  `;
+
+  const resultArea = $('resultArea');
+  resultArea.innerHTML = html;
+  resultArea.classList.add('visible');
+
+  resultArea.querySelectorAll('.nutr-fill[data-width]').forEach(el => {
+    el.style.setProperty('--bar-width', el.dataset.width + '%');
+  });
+
+  fetchAlternative(p);
+
+  const shareBtn = document.getElementById('shareQrBtn');
+  if (shareBtn) {
+    shareBtn.addEventListener('click', () => showQRModal(p.code, p.product_name));
+  }
+}
+
+/* ── Product Info Section ── */
+function buildInfoSection(p, L) {
+  const lb = L.labels;
+  const rows = [];
+
+  if (p.quantity) rows.push(infoRow(lb.quantity, esc(p.quantity)));
+
+  const packagings = p.packaging_tags || [];
+  const packText = packagings
+    .map(t => t.replace(/^en:|^fr:/, '').replace(/-/g, ' '))
+    .filter(Boolean).slice(0, 4).join(', ');
+  if (packText) rows.push(infoRow(lb.packaging, `<span class="info-pack">${esc(packText)}</span>`));
+
+  const originsRaw = p.origins || (p.origins_tags || []).map(t => t.replace(/^en:|^fr:/, '').replace(/-/g, ' ')).join(', ');
+  if (originsRaw) rows.push(infoRow(lb.origin, esc(originsRaw)));
+
+  const countries = (p.countries_tags || [])
+    .map(t => t.replace(/^en:|^fr:/, '').replace(/-/g, ' '))
+    .slice(0, 3).join(', ');
+  if (countries) rows.push(infoRow(lb.countries, esc(countries)));
+
+  if (rows.length === 0) return '';
+  return `<div class="section-block">
+    <div class="section-title">${esc(L.sections_extra.product_info)}</div>
+    <div class="info-table">${rows.join('')}</div>
+  </div>`;
+}
+
+function infoRow(label, valueHtml) {
+  return `<div class="info-row">
+    <span class="info-label">${esc(label)}</span>
+    <span class="info-value">${valueHtml}</span>
+  </div>`;
+}
+
+/* ── Eco Section ── */
+function buildEcoSection(p, L) {
+  const lb = L.labels;
+  const parts = [];
+
+  const gs = (p.ecoscore_grade || '').toUpperCase();
+  if (gs && /^[A-E]$/.test(gs)) {
+    const gsIdx = 'ABCDE'.indexOf(gs) + 1;
+    const gsLabel = (L.green_labels[gsIdx] || gs).replace(/^[A-E] — /, '');
+    const gsScore = p.ecoscore_score;
+    parts.push(`
+      <div class="eco-item eco-item-full">
+        <div class="eco-item-label">${esc(lb.green_score)}</div>
+        <div class="eco-grade-row">
+          <span class="eco-badge eco-grade-${gs.toLowerCase()}">${esc(gs)}</span>
+          <span class="eco-grade-text">${esc(gsLabel)}</span>
+          ${gsScore !== undefined ? `<span class="eco-score-num">${gsScore}/100</span>` : ''}
+        </div>
+        <div class="eco-grade-bar-track">${'ABCDE'.split('').map(g =>
+          `<div class="eco-grade-seg eco-grade-seg-${g.toLowerCase()}${g === gs ? ' eco-seg-active' : ''}"></div>`
+        ).join('')}</div>
+      </div>`);
+  }
+
+  const carbonVal = p.ecoscore_data && p.ecoscore_data.agribalyse && p.ecoscore_data.agribalyse.co2_total;
+  if (carbonVal !== undefined && carbonVal !== null) {
+    const carbonClass = carbonVal < 1 ? 'carbon-low' : carbonVal < 5 ? 'carbon-mid' : 'carbon-high';
+    parts.push(`
+      <div class="eco-item">
+        <div class="eco-item-label">${esc(lb.carbon)}</div>
+        <div class="carbon-row">
+          <span class="carbon-val ${carbonClass}">${carbonVal.toFixed(2)}</span>
+          <span class="carbon-unit">kg CO₂/kg</span>
+        </div>
+      </div>`);
+  }
+
+  const labelTags = (p.labels_tags || []).join(' ');
+  const hasTriman = /triman/.test(labelTags);
+  parts.push(`
+    <div class="eco-item">
+      <div class="eco-item-label">${esc(lb.triman)}</div>
+      <div class="triman-row ${hasTriman ? 'triman-yes' : 'triman-no'}">
+        ${hasTriman
+          ? `<span class="triman-icon">♻️</span><span>${esc(lb.triman_yes.replace('♻️ ', ''))}</span>`
+          : `<span class="triman-icon-no">✕</span><span>${esc(lb.triman_no)}</span>`}
+      </div>
+    </div>`);
+
+  return `<div class="section-block">
+    <div class="section-title">${esc(L.sections_extra.eco)}</div>
+    <div class="eco-grid">${parts.join('')}</div>
+  </div>`;
+}
+
+/* ── Category emoji ── */
+function getCategoryEmoji(p) {
+  const cats = (p.categories_tags || []).join(' ');
+  if (/beverage|boisson|drink|eau/.test(cats))   return '🥤';
+  if (/chocolate|chocolat/.test(cats))            return '🍫';
+  if (/biscuit|cookie/.test(cats))               return '🍪';
+  if (/cereal|céréale/.test(cats))               return '🥣';
+  if (/dairy|lait|fromage|cheese/.test(cats))    return '🧀';
+  if (/fruit/.test(cats))                        return '🍎';
+  if (/pasta|pâte|spaghetti/.test(cats))         return '🍝';
+  if (/bread|pain/.test(cats))                   return '🍞';
+  if (/yogurt|yaourt/.test(cats))                return '🥛';
+  if (/sauce|condiment/.test(cats))              return '🥫';
+  if (/meat|viande|poultry/.test(cats))          return '🍖';
+  if (/fish|poisson|seafood/.test(cats))         return '🐟';
+  if (/vegetable|légume/.test(cats))             return '🥦';
+  return '🥗';
+}
+
+/* ══════════════════════════════════════════════
+   FETCH ALTERNATIVE
+══════════════════════════════════════════════ */
+async function fetchAlternative(p) {
+  const nameEl  = $('altName');
+  const brandEl = $('altBrand');
+  const card    = $('altCard');
+  const label   = $('altLabel');
+  const arrow   = $('altArrow');
+  if (!nameEl) return;
+
+  const L = LANGS[lang];
+  const currentGrade = (p.nutriscore_grade || '').toLowerCase();
+  const gradeOrder   = { a:1, b:2, c:3, d:4, e:5 };
+  const currentRank  = gradeOrder[currentGrade] ?? 99;
+
+  const catTags = [...(p.categories_tags || [])].reverse().slice(0, 5);
+
+  let candidates = [];
+  for (const catTag of catTags) {
+    if (candidates.length >= 5) break;
+    const results = await tryFetchAlt(catTag, p.code, currentRank);
+    results.forEach(r => {
+      if (!candidates.find(c => c.code === r.code)) candidates.push(r);
+    });
+  }
+
+  candidates.sort((x, y) => {
+    const gx = gradeOrder[(x.nutriscore_grade || 'e').toLowerCase()] ?? 5;
+    const gy = gradeOrder[(y.nutriscore_grade || 'e').toLowerCase()] ?? 5;
+    if (gx !== gy) return gx - gy;
+    return (x.product_name || '').localeCompare(y.product_name || '');
+  });
+  candidates = candidates.slice(0, 5);
+
+  if (candidates.length === 0) {
+    if (card) card.style.cursor = 'default';
+    if (arrow) arrow.style.display = 'none';
+    if (label) label.textContent = '';
+    nameEl.textContent  = currentRank <= 2 ? L.alt_already_best : L.alt_bad_no_alt;
+    brandEl.textContent = '';
+    return;
+  }
+
+  const best = candidates[0];
+  applyAlt(best, card, nameEl, brandEl, label);
+
+  const othersEl  = $('altOthers');
+  const seenAllEl = $('altSeenAll');
+  const rest = candidates.slice(1);
+
+  if (rest.length > 0 && othersEl) {
+    othersEl.innerHTML = `
+      <div class="alt-others-title">${esc(L.alt_others)} (${rest.length})</div>
+      ${rest.map(alt => `
+        <div class="alt-card alt-card-other" data-code="${esc(alt.code)}" role="button" tabindex="0">
+          <div class="alt-info">
+            <div class="alt-name">${esc(alt.product_name)}</div>
+            <div class="alt-brand">${esc(alt.brands || '')}${alt.nutriscore_grade ? ` · Nutri-Score ${alt.nutriscore_grade.toUpperCase()}` : ''}</div>
+          </div>
+          <div class="alt-arrow">→</div>
+        </div>`).join('')}`;
+    othersEl.style.display = 'block';
+    othersEl.querySelectorAll('.alt-card-other').forEach(el => {
+      el.addEventListener('click', () => openAltModal(el.dataset.code));
+    });
+  }
+
+  if (seenAllEl) {
+    seenAllEl.textContent = L.alt_top_count(candidates.length);
+    seenAllEl.style.display = 'block';
+  }
+}
+
+async function tryFetchAlt(catTag, excludeCode, currentRank) {
+  const gradeOrder = { a:1, b:2, c:3, d:4, e:5 };
+  try {
+    const url = `https://world.openfoodfacts.org/api/v2/search?categories_tags=${encodeURIComponent(catTag)}&page_size=50&fields=code,product_name,brands,nutriscore_grade,nova_group,nutriments`;
+    const res  = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    if (!res.ok) return [];
+    const data = await res.json();
+
+    return (data.products || []).filter(pr => {
+      if (!pr.product_name || pr.code === excludeCode) return false;
+      const grade = (pr.nutriscore_grade || '').toLowerCase();
+      const rank  = gradeOrder[grade] ?? 99;
+      if (rank >= currentRank) return false;
+      const nova = parseInt(pr.nova_group) || 0;
+      if (nova === 4) return false;
+      // ADD after the nova check:
+const nutr = pr.nutriments || {};
+const sugar  = nutr.sugars_100g  || 0;
+const satfat = nutr['saturated-fat_100g'] || 0;
+const salt   = nutr.salt_100g   || 0;
+if (sugar > 22 && satfat > 10 && salt > 1.5) return false; // skip nutritionally poor products
+      const energy   = nutr['energy-kcal_100g'] ?? nutr.energy_100g;
+      const proteins = nutr.proteins_100g;
+      const fat      = nutr.fat_100g;
+      if (!energy || (!proteins && !fat)) return false;
+      return true;
+    });
+  } catch (_) {
+    return [];
+  }
+}
+
+function applyAlt(alt, card, nameEl, brandEl, labelEl) {
+  nameEl.textContent  = alt.product_name;
+  brandEl.textContent = (alt.brands || '') + (alt.nutriscore_grade ? ` · Nutri-Score ${alt.nutriscore_grade.toUpperCase()}` : '');
+  if (labelEl) labelEl.textContent = LANGS[lang].alt_best_label;
+  if (card) {
+    const newCard = card.cloneNode(true);
+    card.parentNode.replaceChild(newCard, card);
+    newCard.addEventListener('click', () => openAltModal(alt.code));
+  }
+}
+
+/* ══════════════════════════════════════════════
+   ALTERNATIVE MODAL
+══════════════════════════════════════════════ */
+async function openAltModal(code) {
+  const L = LANGS[lang];
+
+  const overlay = document.createElement('div');
+  overlay.id = 'altModal';
+  overlay.innerHTML = `
+    <div class="modal-box" role="dialog" aria-modal="true">
+      <button class="modal-close" id="modalClose" aria-label="Fermer">✕</button>
+      <div class="modal-body" id="modalBody">
+        <div class="modal-loading">${esc(L.alt_loading)}</div>
+      </div>
+      <div class="modal-footer">
+        <a class="modal-off-link" href="https://world.openfoodfacts.org/product/${encodeURIComponent(code)}" target="_blank" rel="noopener">
+          🔗 Voir sur Open Food Facts
+        </a>
+        <button class="modal-scan-btn" id="modalScanBtn">🔍 Analyser ce produit</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  const close = () => overlay.remove();
+  $('modalClose').addEventListener('click', close);
+  overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+  document.addEventListener('keydown', function handler(e) {
+    if (e.key === 'Escape') { close(); document.removeEventListener('keydown', handler); }
+  });
+
+  $('modalScanBtn').addEventListener('click', () => {
+    close();
+    $('barcodeInput').value = code;
+    handleScan();
+  });
+
+  try {
+    const res  = await fetch(`https://world.openfoodfacts.org/api/v0/product/${encodeURIComponent(code)}.json`,
+      { signal: AbortSignal.timeout(10000) });
+    const data = await res.json();
+    if (data.status !== 1 || !data.product) throw new Error();
+
+    const p     = data.product;
+    const nutr  = p.nutriments || {};
+    const nutri = (p.nutriscore_grade || '').toUpperCase();
+    const nova  = parseInt(p.nova_group) || 0;
+    const { verdictKey, verdictReason } = computeVerdict(p);
+
+    const nutriBadge = nutri ? `<span class="badge badge-nutri-${nutri.toLowerCase()}">Nutri-Score ${nutri}</span>` : '';
+    const novaLabel  = nova  ? L.nova_labels[Math.min(nova, 4)] : '';
+    const novaBadge  = nova  ? `<span class="badge badge-nova-${Math.min(nova,4)}">NOVA ${nova} — ${esc(novaLabel)}</span>` : '';
+    const imgUrl     = p.image_front_small_url || p.image_front_url || '';
+    const imgHtml    = imgUrl ? `<img class="modal-product-img" src="${esc(imgUrl)}" alt="" loading="lazy">` : '';
+
+    function modalNutr(label, val, unit) {
+      const display = (val !== undefined && val !== null) ? val.toFixed(1) : '—';
+      return `<div class="modal-nutr-row"><span>${esc(label)}</span><strong>${esc(display)} ${esc(unit)}</strong></div>`;
+    }
+    const N = L.nutrients;
+    const energy = nutr['energy-kcal_100g'] ?? (nutr.energy_100g ? nutr.energy_100g / 4.184 : undefined);
+
+    $('modalBody').innerHTML = `
+      <div class="modal-header">
+        ${imgHtml}
+        <div>
+          <div class="modal-product-name">${esc(p.product_name || '—')}</div>
+          <div class="modal-product-brand">${esc(p.brands || '')}</div>
+          <div class="badges-row">${nutriBadge}${novaBadge}</div>
+        </div>
+      </div>
+      <div class="verdict-card verdict-${verdictKey}">
+        <div class="verdict-label">${L.verdict[verdictKey]}</div>
+        <div class="verdict-reason">${esc(verdictReason)}</div>
+      </div>
+      <div class="modal-nutr-grid">
+        ${modalNutr(N.energy,   energy,                      'kcal')}
+        ${modalNutr(N.sugars,   nutr.sugars_100g,            'g')}
+        ${modalNutr(N.fat,      nutr.fat_100g,               'g')}
+        ${modalNutr(N.satfat,   nutr['saturated-fat_100g'],  'g')}
+        ${modalNutr(N.salt,     nutr.salt_100g,              'g')}
+        ${modalNutr(N.proteins, nutr.proteins_100g,          'g')}
+        ${modalNutr(N.fiber,    nutr.fiber_100g,             'g')}
+      </div>`;
+  } catch (_) {
+    $('modalBody').innerHTML = `<div class="modal-loading">${esc(L.not_found)}</div>`;
+  }
+}
+
+/* ══════════════════════════════════════════════
+   QR CODE SHARE
+══════════════════════════════════════════════ */
+function showQRModal(barcode, productName) {
+  const existing = document.getElementById('qrModal');
+  if (existing) existing.remove();
+
+  const L = LANGS[lang];
+  const url = `https://foodlens2026.netlify.app/?barcode=${encodeURIComponent(barcode)}`;
+  const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}`;
+
+  const overlay = document.createElement('div');
+  overlay.id = 'qrModal';
+  overlay.innerHTML = `
+    <div class="modal-box qr-modal-box" role="dialog" aria-modal="true">
+      <button class="modal-close" id="qrModalClose" aria-label="Fermer">✕</button>
+      <div class="qr-modal-title">📤 ${esc(L.share_title)}</div>
+      <div class="qr-modal-name">${esc(productName || barcode)}</div>
+      <img class="qr-img" src="${esc(qrApiUrl)}" alt="QR Code" width="200" height="200"/>
+      <div class="qr-modal-sub">${esc(L.share_sub)}</div>
+      <div class="qr-copy-row">
+        <input class="qr-url-input" id="qrUrlInput" value="${esc(url)}" readonly/>
+        <button class="scan-btn qr-copy-btn" id="qrCopyBtn">${esc(L.share_copy)}</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  document.getElementById('qrModalClose').addEventListener('click', () => overlay.remove());
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  document.addEventListener('keydown', function handler(e) {
+    if (e.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', handler); }
+  });
+
+  document.getElementById('qrCopyBtn').addEventListener('click', () => {
+    navigator.clipboard.writeText(url).then(() => {
+      const btn = document.getElementById('qrCopyBtn');
+      if (btn) {
+        btn.textContent = LANGS[lang].share_copied;
+        setTimeout(() => { if (btn) btn.textContent = LANGS[lang].share_copy; }, 2000);
+      }
+    });
+  });
+}
+
+/* ── Events ── */
+$('barcodeInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') handleScan();
+});
+
+$('scanBtn').addEventListener('click', () => handleScan());
+
+document.querySelectorAll('.example-chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    $('barcodeInput').value = chip.dataset.barcode;
+    handleScan();
+  });
+});
+
+/* ── Save lang preference ── */
+(function () {
+  const saved = localStorage.getItem('foodlens_lang');
+  if (saved && LANGS[saved]) setLang(saved);
+})();
+
+document.querySelectorAll('.lang-btn').forEach(b => {
+  b.addEventListener('click', () => {
+    setLang(b.dataset.lang);
+    localStorage.setItem('foodlens_lang', b.dataset.lang);
+  });
+});
+
+/* ── Auto-scan from shared QR link ── */
+(function () {
+  const params  = new URLSearchParams(window.location.search);
+  const barcode = params.get('barcode');
+  if (barcode) {
+    $('barcodeInput').value = barcode;
+    handleScan();
+  }
+})();
