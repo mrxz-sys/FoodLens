@@ -320,7 +320,7 @@ const LANGS = {
 
 let lang = 'fr';
 let lastProduct = null;
-
+const productCache = new Map();
 /* ── Helpers ── */
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -364,20 +364,33 @@ async function handleScan() {
   resultArea.innerHTML = '';
 
   try {
-    const res = await fetch(
-      `https://world.openfoodfacts.org/api/v0/product/${encodeURIComponent(barcode)}.json`,
-      { signal: AbortSignal.timeout(10000) }
-    );
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const data = await res.json();
-
-    if (data.status !== 1 || !data.product) {
-      showError(LANGS[lang].not_found);
-      return;
+    const barcode2 = $('barcodeInput').value.trim().replace(/\s/g, '');
+    let product = productCache.get(barcode2);
+    if (!product) {
+      const res = await fetch(
+        `https://world.openfoodfacts.org/api/v0/product/${encodeURIComponent(barcode2)}.json`,
+        { signal: AbortSignal.timeout(10000) }
+      );
+      if (res.status === 429) {
+        await new Promise(r => setTimeout(r, 1500));
+        const res2 = await fetch(
+          `https://world.openfoodfacts.org/api/v0/product/${encodeURIComponent(barcode2)}.json`,
+          { signal: AbortSignal.timeout(10000) }
+        );
+        if (!res2.ok) throw new Error('HTTP ' + res2.status);
+        const data2 = await res2.json();
+        if (data2.status !== 1 || !data2.product) { showError(LANGS[lang].not_found); return; }
+        product = data2.product;
+      } else {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        if (data.status !== 1 || !data.product) { showError(LANGS[lang].not_found); return; }
+        product = data.product;
+      }
+      productCache.set(barcode2, product);
     }
-
-    lastProduct = data.product;
-    renderProduct(data.product);
+    lastProduct = product;
+    renderProduct(product);
   } catch (e) {
     showError(e.name === 'TimeoutError' ? LANGS[lang].net_error : LANGS[lang].not_found);
   } finally {
@@ -1352,12 +1365,16 @@ function setCompareMode(on) {
 }
 
 async function fetchProductForCompare(barcode) {
-  const res  = await fetch(
-    `https://world.openfoodfacts.org/api/v0/product/${encodeURIComponent(barcode)}.json`,
-    { signal: AbortSignal.timeout(10000) }
-  );
+  if (productCache.has(barcode)) return productCache.get(barcode);
+  const url = `https://world.openfoodfacts.org/api/v0/product/${encodeURIComponent(barcode)}.json`;
+  let res = await fetch(url, { signal: AbortSignal.timeout(10000) });
+  if (res.status === 429) {
+    await new Promise(r => setTimeout(r, 1500));
+    res = await fetch(url, { signal: AbortSignal.timeout(10000) });
+  }
   const data = await res.json();
   if (data.status !== 1 || !data.product) throw new Error('not_found');
+  productCache.set(barcode, data.product);
   return data.product;
 }
 
