@@ -71,6 +71,19 @@ const LANGS = {
       unknown:     'Not specified',
     },
     green_labels: ['', 'A — Very low impact', 'B — Low impact', 'C — Moderate impact', 'D — High impact', 'E — Very high impact'],
+    compare: {
+      tab:       'Compare',
+      analyze:   'Analyze',
+      labelA:    'Product A',
+      labelB:    'Product B',
+      btn:       '⚖️ Compare',
+      title:     'Side-by-side comparison',
+      winner:    '🏆 Better choice',
+      tie:       '🤝 Tie',
+      perHundred:'per 100g',
+      viewFull:  'Full analysis',
+      noData:    'No data',
+    },
   },
   fr: {
     labelScan: 'Code-barres',
@@ -135,6 +148,19 @@ const LANGS = {
       unknown:     'Non renseigné',
     },
     green_labels: ['', 'A — Très faible impact', 'B — Faible impact', 'C — Impact modéré', 'D — Impact élevé', 'E — Très fort impact'],
+    compare: {
+      tab:       'Comparer',
+      analyze:   'Analyser',
+      labelA:    'Produit A',
+      labelB:    'Produit B',
+      btn:       '⚖️ Comparer',
+      title:     'Comparaison côte à côte',
+      winner:    '🏆 Meilleur choix',
+      tie:       '🤝 Égalité',
+      perHundred:'pour 100 g',
+      viewFull:  'Analyse complète',
+      noData:    'N/A',
+    },
   },
   ar: {
     labelScan: 'الباركود',
@@ -199,6 +225,19 @@ const LANGS = {
       unknown:     'غير محدد',
     },
     green_labels: ['', 'A — تأثير منخفض جداً', 'B — تأثير منخفض', 'C — تأثير معتدل', 'D — تأثير عالٍ', 'E — تأثير عالٍ جداً'],
+    compare: {
+      tab:       'مقارنة',
+      analyze:   'تحليل',
+      labelA:    'منتج أ',
+      labelB:    'منتج ب',
+      btn:       '⚖️ مقارنة',
+      title:     'مقارنة جانبية',
+      winner:    '🏆 الخيار الأفضل',
+      tie:       '🤝 تعادل',
+      perHundred:'لكل 100 غ',
+      viewFull:  'تحليل كامل',
+      noData:    'غير متاح',
+    },
   },
   dr: {
     labelScan: 'الباركود',
@@ -263,6 +302,19 @@ const LANGS = {
       unknown:     'ما معروفش',
     },
     green_labels: ['', 'A — تأثير خفيف بزاف', 'B — تأثير خفيف', 'C — تأثير معتدل', 'D — تأثير عالي', 'E — تأثير عالي بزاف'],
+    compare: {
+      tab:       'قارن',
+      analyze:   'حلّل',
+      labelA:    'منتوج أ',
+      labelB:    'منتوج ب',
+      btn:       '⚖️ قارن',
+      title:     'مقارنة جنب لجنب',
+      winner:    '🏆 الأحسن',
+      tie:       '🤝 مساواة',
+      perHundred:'ل 100 غ',
+      viewFull:  'تحليل كامل',
+      noData:    'ما كاينش',
+    },
   },
 };
 
@@ -278,11 +330,16 @@ function setLang(l) {
   const L = LANGS[l];
   document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b.dataset.lang === l));
   document.documentElement.setAttribute('dir', L.dir);
-  $('labelScan').textContent    = L.labelScan;
-  $('scanBtnText').textContent  = L.scanBtn;
-  $('labelTry').textContent     = L.labelTry;
-  $('emptyTitle').textContent   = L.emptyTitle;
-  $('emptySub').textContent     = L.emptySub;
+  $('labelScan').textContent       = L.labelScan;
+  $('scanBtnText').textContent     = L.scanBtn;
+  $('labelTry').textContent        = L.labelTry;
+  $('emptyTitle').textContent      = L.emptyTitle;
+  $('emptySub').textContent        = L.emptySub;
+  $('tabSingleLabel').textContent  = L.compare.analyze;
+  $('tabCompareLabel').textContent = L.compare.tab;
+  $('labelA').textContent          = L.compare.labelA;
+  $('labelB').textContent          = L.compare.labelB;
+  $('compareBtnText').textContent  = L.compare.btn;
   if (lastProduct) renderProduct(lastProduct);
 }
 
@@ -490,50 +547,98 @@ function renderProduct(p) {
       </div>`;
   }
 
-  // Construction dynamique de la grille nutritionnelle
-  function buildNutritionGrid() {
-    const core = [
-      { key: 'energy-kcal_100g',      label: L.nutrients.energy,   unit: 'kcal', max: 500,  ok: 200,  warn: 350 },
-      { key: 'sugars_100g',           label: L.nutrients.sugars,   unit: 'g',    max: 50,   ok: 10,   warn: 22  },
-      { key: 'fat_100g',              label: L.nutrients.fat,       unit: 'g',    max: 40,   ok: 10,   warn: 20  },
-      { key: 'saturated-fat_100g',    label: L.nutrients.satfat,   unit: 'g',    max: 20,   ok: 5,    warn: 10  },
-      { key: 'salt_100g',             label: L.nutrients.salt,      unit: 'g',    max: 3,    ok: 0.5,  warn: 1.5 },
-      { key: 'proteins_100g',         label: L.nutrients.proteins, unit: 'g',    max: 30,   ok: 30,   warn: 30  },
-      { key: 'fiber_100g',            label: L.nutrients.fiber,     unit: 'g',    max: 10,   ok: 5,    warn: 10  },
-    ];
-
-    const extraMap = {
-      'carbohydrates_100g':           { label: 'Glucides',          unit: 'g'   },
-      'sodium_100g':                  { label: 'Sodium',            unit: 'g'   },
-      'calcium_100g':                 { label: 'Calcium',           unit: 'mg', factor: 1000 },
-      'magnesium_100g':               { label: 'Magnésium',         unit: 'mg', factor: 1000 },
-      'potassium_100g':               { label: 'Potassium',         unit: 'mg', factor: 1000 },
-      'alcohol_100g':                 { label: 'Alcool',            unit: '% vol' },
-      'caffeine_100g':                { label: 'Caféine',           unit: 'mg', factor: 1000 },
-    };
-
-    let html = core.map(n => {
-      let val = nutr[n.key];
-      if (n.key === 'energy-kcal_100g' && val === undefined && nutr.energy_100g)
-        val = nutr.energy_100g / 4.184;
-      return nutrItem(n.label, val, n.unit, n.max, n.ok, n.warn);
-    }).join('');
-
-    const coreKeys = new Set(core.map(n => n.key));
-    for (const [key, meta] of Object.entries(extraMap)) {
-      if (coreKeys.has(key)) continue;
-      let val = nutr[key];
-      if (val === undefined || val === null) continue;
-      if (meta.factor) val = val * meta.factor;
-      const display = val.toFixed(val < 1 ? 2 : 1);
-      html += `
-        <div class="nutr-item nutr-item-extra">
-          <div class="nutr-label">${esc(meta.label)}</div>
-          <div class="nutr-value">${esc(display)}<span class="nutr-unit">${esc(meta.unit)}</span></div>
-        </div>`;
-    }
-    return html;
+// Thresholds for color coding (per 100g). Returns 'green' | 'warn' | 'red' | null
+  function nutrColorClass(name, valG) {
+    if (valG === undefined || valG === null) return null;
+    const n = name.toLowerCase();
+    if (n === 'sugars')           return valG <= 5  ? 'nutr-good' : valG <= 22  ? 'nutr-warn' : 'nutr-bad';
+    if (n === 'fat')              return valG <= 10 ? 'nutr-good' : valG <= 20  ? 'nutr-warn' : 'nutr-bad';
+    if (n === 'saturated-fat')    return valG <= 3  ? 'nutr-good' : valG <= 10  ? 'nutr-warn' : 'nutr-bad';
+    if (n === 'salt')             return valG <= 0.6? 'nutr-good' : valG <= 1.5 ? 'nutr-warn' : 'nutr-bad';
+    if (n === 'sodium')           return valG <= 0.24? 'nutr-good': valG <= 0.6 ? 'nutr-warn' : 'nutr-bad';
+    if (n === 'proteins')         return valG >= 10 ? 'nutr-good' : valG >= 5   ? 'nutr-warn' : null;
+    if (n === 'fiber')            return valG >= 6  ? 'nutr-good' : valG >= 3   ? 'nutr-warn' : null;
+    if (n === 'energy-kcal' || n === 'energy') return valG <= 150 ? 'nutr-good' : valG <= 400 ? 'nutr-warn' : 'nutr-bad';
+    return null;
   }
+
+function buildNutritionGrid() {
+  // Ordered allowlist — removes duplicates & non-nutrients (nova-group, fruits-estimate, etc.)
+  const NUTR_ALLOWED = [
+    { key: 'energy-kcal',    icon: '🔥' },
+    { key: 'carbohydrates',  icon: '🌾' },
+    { key: 'sugars',         icon: '🍬' },
+    { key: 'fat',            icon: '🧈' },
+    { key: 'saturated-fat',  icon: '🧈' },
+    { key: 'proteins',       icon: '🥩' },
+    { key: 'fiber',          icon: '🌿' },
+    { key: 'salt',           icon: '🧂' },
+  ];
+
+  const entries = NUTR_ALLOWED
+    .map(({ key, icon }) => {
+      const val = nutr[key + '_100g'];
+      if (val === undefined || val === null || typeof val !== 'number' || val < 0) return null;
+      const unit  = nutr[key + '_unit'] || 'g';
+      const label = key.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+      return { name: key, label, baseVal: val, unit, icon };
+    })
+    .filter(Boolean);
+
+  if (!entries.length) return `<div class="nutr-item"><div class="nutr-label">—</div></div>`;
+
+  return entries.map(e => {
+    // Smart unit: display in mg when value < 1 g (and stored in g)
+    const storedInG = e.unit === 'g';
+    let displayUnit, displayVal;
+    if (storedInG && e.baseVal < 1) {
+      displayUnit = 'mg';
+      displayVal  = (e.baseVal * 1000).toFixed(1);
+    } else if (storedInG) {
+      displayUnit = 'g';
+      displayVal  = e.baseVal.toFixed(1);
+    } else {
+      // already in mg/µg/kcal — show as-is
+      displayUnit = e.unit;
+      displayVal  = e.unit === 'µg'
+        ? (e.baseVal * 1000000).toFixed(0)
+        : e.unit === 'mg'
+        ? (e.baseVal * 1000).toFixed(1)
+        : e.baseVal.toFixed(1);
+    }
+
+    // Alt unit for tap-toggle pill
+    let altUnit, altVal;
+    if (e.unit === 'kcal' || e.name === 'energy-kcal') {
+      altUnit = 'kJ';
+      altVal  = (e.baseVal * 4.184).toFixed(0);
+    } else if (displayUnit === 'mg') {
+      altUnit = 'g';
+      altVal  = e.baseVal.toFixed(3);
+    } else if (displayUnit === 'g') {
+      altUnit = 'mg';
+      altVal  = (e.baseVal * 1000).toFixed(1);
+    } else {
+      altUnit = null;
+      altVal  = null;
+    }
+
+    const colorCls = nutrColorClass(e.name, e.baseVal) || '';
+
+    const toggleHtml = altUnit
+      ? `<button class="nutr-unit-pill" data-val="${esc(displayVal)}" data-unit="${esc(displayUnit)}" data-alt-val="${esc(altVal)}" data-alt-unit="${esc(altUnit)}" aria-label="Changer l'unité">${esc(displayUnit)}</button>`
+      : `<span class="nutr-unit">${esc(displayUnit)}</span>`;
+
+    return `
+      <div class="nutr-item ${colorCls}">
+        <div class="nutr-label"><span class="nutr-icon" aria-hidden="true">${e.icon}</span>${esc(e.label)}</div>
+        <div class="nutr-value-row">
+          <span class="nutr-val-display ${colorCls}">${esc(displayVal)}</span>
+          ${toggleHtml}
+        </div>
+      </div>`;
+  }).join('');
+}
 
   // Construction des avertissements
   const warningItems = [];
@@ -630,6 +735,23 @@ function renderProduct(p) {
 
   resultArea.querySelectorAll('.nutr-fill[data-width]').forEach(el => {
     el.style.setProperty('--bar-width', el.dataset.width + '%');
+  });
+// Tap-to-toggle unit pills
+  resultArea.querySelectorAll('.nutr-unit-pill').forEach(pill => {
+    pill.addEventListener('click', () => {
+      const isAlt = pill.dataset.showing === 'alt';
+      if (isAlt) {
+        // revert to primary
+        pill.closest('.nutr-item').querySelector('.nutr-val-display').textContent = pill.dataset.val;
+        pill.textContent = pill.dataset.unit;
+        delete pill.dataset.showing;
+      } else {
+        // switch to alt
+        pill.closest('.nutr-item').querySelector('.nutr-val-display').textContent = pill.dataset.altVal;
+        pill.textContent = pill.dataset.altUnit;
+        pill.dataset.showing = 'alt';
+      }
+    });
   });
 
   fetchAlternative(p);
@@ -908,8 +1030,8 @@ async function openAltModal(code) {
     const data = await res.json();
     if (data.status !== 1 || !data.product) throw new Error();
 
-    const p     = data.product;
-    const nutr  = p.nutriments || {};
+    const p    = data.product;
+    const nutr = p.nutriments || {};
     const nutri = (p.nutriscore_grade || '').toUpperCase();
     const nova  = parseInt(p.nova_group) || 0;
     const { verdictKey, verdictReason } = computeVerdict(p);
@@ -918,15 +1040,208 @@ async function openAltModal(code) {
     const novaLabel  = nova  ? L.nova_labels[Math.min(nova, 4)] : '';
     const novaBadge  = nova  ? `<span class="badge badge-nova-${Math.min(nova,4)}">NOVA ${nova} — ${esc(novaLabel)}</span>` : '';
     const imgUrl     = p.image_front_small_url || p.image_front_url || '';
-    const imgHtml    = imgUrl ? `<img class="modal-product-img" src="${esc(imgUrl)}" alt="" loading="lazy">` : '';
+    const imgHtml    = imgUrl
+      ? `<img class="modal-product-img" src="${esc(imgUrl)}" alt="" loading="lazy">`
+      : `<div class="modal-product-no-img">🥫</div>`;
 
-    function modalNutr(label, val, unit) {
-      const display = (val !== undefined && val !== null) ? val.toFixed(1) : '—';
-      return `<div class="modal-nutr-row"><span>${esc(label)}</span><strong>${esc(display)} ${esc(unit)}</strong></div>`;
+    /* ── Dynamic nutrition grid (same logic as main view) ── */
+    function modalNutrColorClass(name, valG) {
+      if (valG === undefined || valG === null) return '';
+      const n = name.toLowerCase();
+      if (n === 'sugars')        return valG <= 5   ? 'nutr-good' : valG <= 22  ? 'nutr-warn' : 'nutr-bad';
+      if (n === 'fat')           return valG <= 10  ? 'nutr-good' : valG <= 20  ? 'nutr-warn' : 'nutr-bad';
+      if (n === 'saturated-fat') return valG <= 3   ? 'nutr-good' : valG <= 10  ? 'nutr-warn' : 'nutr-bad';
+      if (n === 'salt')          return valG <= 0.6 ? 'nutr-good' : valG <= 1.5 ? 'nutr-warn' : 'nutr-bad';
+      if (n === 'sodium')        return valG <= 0.24? 'nutr-good' : valG <= 0.6 ? 'nutr-warn' : 'nutr-bad';
+      if (n === 'proteins')      return valG >= 10  ? 'nutr-good' : valG >= 5   ? 'nutr-warn' : '';
+      if (n === 'fiber')         return valG >= 6   ? 'nutr-good' : valG >= 3   ? 'nutr-warn' : '';
+      if (n === 'energy-kcal' || n === 'energy') return valG <= 150 ? 'nutr-good' : valG <= 400 ? 'nutr-warn' : 'nutr-bad';
+      return '';
     }
-    const N = L.nutrients;
-    const energy = nutr['energy-kcal_100g'] ?? (nutr.energy_100g ? nutr.energy_100g / 4.184 : undefined);
 
+    function buildModalNutrGrid() {
+      const NUTR_ALLOWED = [
+        { key: 'energy-kcal',   icon: '🔥' },
+        { key: 'carbohydrates', icon: '🌾' },
+        { key: 'sugars',        icon: '🍬' },
+        { key: 'fat',           icon: '🧈' },
+        { key: 'saturated-fat', icon: '🧈' },
+        { key: 'proteins',      icon: '🥩' },
+        { key: 'fiber',         icon: '🌿' },
+        { key: 'salt',          icon: '🧂' },
+      ];
+
+      const entries = NUTR_ALLOWED
+        .map(({ key, icon }) => {
+          const val = nutr[key + '_100g'];
+          if (val === undefined || val === null || typeof val !== 'number' || val < 0) return null;
+          const unit  = nutr[key + '_unit'] || 'g';
+          const label = key.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+          return { name: key, label, baseVal: val, unit, icon };
+        })
+        .filter(Boolean);
+
+      if (!entries.length) return `<div class="modal-nutr-row"><span>—</span><strong>—</strong></div>`;
+
+      return entries.map(e => {
+        const storedInG = e.unit === 'g';
+        let displayUnit, displayVal;
+        if (storedInG && e.baseVal < 1) {
+          displayUnit = 'mg'; displayVal = (e.baseVal * 1000).toFixed(1);
+        } else if (storedInG) {
+          displayUnit = 'g';  displayVal = e.baseVal.toFixed(1);
+        } else {
+          displayUnit = e.unit;
+          displayVal  = e.unit === 'µg' ? (e.baseVal * 1e6).toFixed(0)
+                      : e.unit === 'mg' ? (e.baseVal * 1000).toFixed(1)
+                      : e.baseVal.toFixed(1);
+        }
+
+        let altUnit, altVal;
+        if (e.unit === 'kcal' || e.name === 'energy-kcal') {
+          altUnit = 'kJ';  altVal = (e.baseVal * 4.184).toFixed(0);
+        } else if (displayUnit === 'mg') {
+          altUnit = 'g';   altVal = e.baseVal.toFixed(3);
+        } else if (displayUnit === 'g') {
+          altUnit = 'mg';  altVal = (e.baseVal * 1000).toFixed(1);
+        } else {
+          altUnit = null; altVal = null;
+        }
+
+        const colorCls = modalNutrColorClass(e.name, e.baseVal);
+        const pillHtml = altUnit
+          ? `<button class="modal-nutr-pill" data-val="${esc(displayVal)}" data-unit="${esc(displayUnit)}" data-alt-val="${esc(altVal)}" data-alt-unit="${esc(altUnit)}">${esc(displayUnit)}</button>`
+          : `<span class="modal-nutr-unit-plain">${esc(displayUnit)}</span>`;
+
+        return `
+          <div class="modal-nutr-row">
+            <span class="modal-nutr-label"><span class="nutr-icon" aria-hidden="true">${e.icon}</span>${esc(e.label)}</span>
+            <div class="modal-nutr-val-wrap">
+              <strong class="modal-nutr-val ${colorCls}">${esc(displayVal)}</strong>
+              ${pillHtml}
+            </div>
+          </div>`;
+      }).join('');
+    }
+
+    /* ── Warnings (same logic as main view) ── */
+    const ingr       = (p.ingredients_text || '').toLowerCase();
+    const categories = (p.categories_tags  || []).join(' ').toLowerCase();
+    const labels_t   = (p.labels_tags      || []).join(' ').toLowerCase();
+    const allergens  = (p.allergens_tags   || []).join(' ').toLowerCase();
+    const traces     = (p.traces_tags      || []).join(' ').toLowerCase();
+    const specIngr   = (p.specific_ingredients || []).map(i => (i.ingredient || i.id || '').toLowerCase()).join(' ');
+    const pName      = (p.product_name || '').toLowerCase();
+
+    const porkPat    = /\b(porc|pork|lard|gelatine|gélatine|saindoux|jambon|cochon|porcine|pig|bacon|ham)\b/i;
+    const alcoholPat = /\b(alcool|alcohol|vin|wine|bier|beer|bière|whisky|vodka|rhum|rum|cidre|cider|champagne)\b/i;
+    const glutenPat  = /\b(gluten|blé|wheat|orge|barley|seigle|rye|avoine|oats|épeautre|spelt|kamut)\b/i;
+    const lacPat     = /\b(lait|milk|lactose|lactos|crème|cream|beurre|butter|fromage|cheese|yogourt|yogurt|petit-lait|whey)\b/i;
+
+    const hasPork    = porkPat.test(ingr)    || porkPat.test(specIngr)   || porkPat.test(categories) || porkPat.test(labels_t) || porkPat.test(pName);
+    const hasAlcohol = alcoholPat.test(ingr) || alcoholPat.test(specIngr)|| alcoholPat.test(categories)|| alcoholPat.test(pName);
+    const hasGluten  = glutenPat.test(ingr)  || glutenPat.test(specIngr) || allergens.includes('gluten')|| traces.includes('gluten');
+    const hasLactose = lacPat.test(ingr)     || lacPat.test(specIngr)    || allergens.includes('milk') || traces.includes('milk');
+    const notHalal   = (hasPork || hasAlcohol) && !labels_t.includes('halal');
+
+    const { flags } = computeVerdict(p);
+
+    const warnItems = [];
+    if (notHalal) warnItems.push({ type:'alert', key:'halal' });
+    else          warnItems.push({ type:'ok',    key:'ok_halal' });
+    if (hasPork && !notHalal) warnItems.push({ type:'alert', key:'pork' });
+    if (hasGluten)  warnItems.push({ type:'alert', key:'gluten' });
+    if (hasLactose) warnItems.push({ type:'alert', key:'lactose' });
+    if (flags.includes('ultra'))        warnItems.push({ type:'alert', key:'ultra' });
+    if (flags.includes('high_salt') || flags.includes('high_sodium')) warnItems.push({ type:'alert', key:'high_sodium' });
+    if (flags.includes('high_satfat'))  warnItems.push({ type:'alert', key:'high_satfat' });
+    if (flags.includes('high_additive'))warnItems.push({ type:'alert', key:'high_additive' });
+    if (flags.includes('low_calorie'))  warnItems.push({ type:'ok',    key:'low_calorie' });
+
+    const warningsHtml = warnItems.map(w => {
+      const [title, desc] = L.warnings[w.key] || ['?', ''];
+      return `<div class="warning-item ${w.type === 'ok' ? 'warn-ok' : 'warn-alert'}">
+        <div class="warning-dot ${w.type === 'ok' ? 'dot-green' : 'dot-red'}"></div>
+        <div class="warning-text"><strong>${esc(title)}</strong>${esc(desc)}</div>
+      </div>`;
+    }).join('');
+
+    /* ── Ingredients ── */
+    const ingrHtml = p.ingredients_text
+      ? `<div class="modal-section-block">
+           <div class="modal-section-title">${esc(L.sections.ingredients)}</div>
+           <div class="ingredients-box">
+             <div class="ingredients-text">${esc(p.ingredients_text.slice(0, 400))}${p.ingredients_text.length > 400 ? '…' : ''}</div>
+           </div>
+         </div>`
+      : '';
+
+    /* ── Product info ── */
+    const lb = L.labels;
+    const infoRows = [];
+    if (p.quantity) infoRows.push(`<div class="info-row"><span class="info-label">${esc(lb.quantity)}</span><span class="info-value">${esc(p.quantity)}</span></div>`);
+    const packText = (p.packaging_tags || []).map(t => t.replace(/^en:|^fr:/, '').replace(/-/g,' ')).filter(Boolean).slice(0,4).join(', ');
+    if (packText) infoRows.push(`<div class="info-row"><span class="info-label">${esc(lb.packaging)}</span><span class="info-value">${esc(packText)}</span></div>`);
+    const originsRaw = p.origins || (p.origins_tags || []).map(t => t.replace(/^en:|^fr:/, '').replace(/-/g,' ')).join(', ');
+    if (originsRaw) infoRows.push(`<div class="info-row"><span class="info-label">${esc(lb.origin)}</span><span class="info-value">${esc(originsRaw)}</span></div>`);
+    const countries = (p.countries_tags || []).map(t => t.replace(/^en:|^fr:/, '').replace(/-/g,' ')).slice(0,3).join(', ');
+    if (countries) infoRows.push(`<div class="info-row"><span class="info-label">${esc(lb.countries)}</span><span class="info-value">${esc(countries)}</span></div>`);
+    const infoSectionHtml = infoRows.length
+      ? `<div class="modal-section-block">
+           <div class="modal-section-title">${esc(L.sections_extra.product_info)}</div>
+           <div class="info-table">${infoRows.join('')}</div>
+         </div>`
+      : '';
+
+    /* ── Eco ── */
+    const ecoParts = [];
+    const gs = (p.ecoscore_grade || '').toUpperCase();
+    if (gs && /^[A-E]$/.test(gs)) {
+      const gsIdx   = 'ABCDE'.indexOf(gs) + 1;
+      const gsLabel = (L.green_labels[gsIdx] || gs).replace(/^[A-E] — /, '');
+      const gsScore = p.ecoscore_score;
+      ecoParts.push(`
+        <div class="eco-item eco-item-full">
+          <div class="eco-item-label">${esc(lb.green_score)}</div>
+          <div class="eco-grade-row">
+            <span class="eco-badge eco-grade-${gs.toLowerCase()}">${esc(gs)}</span>
+            <span class="eco-grade-text">${esc(gsLabel)}</span>
+            ${gsScore !== undefined ? `<span class="eco-score-num">${gsScore}/100</span>` : ''}
+          </div>
+          <div class="eco-grade-bar-track">${'ABCDE'.split('').map(g =>
+            `<div class="eco-grade-seg eco-grade-seg-${g.toLowerCase()}${g===gs?' eco-seg-active':''}"></div>`
+          ).join('')}</div>
+        </div>`);
+    }
+    const carbonVal = p.ecoscore_data?.agribalyse?.co2_total;
+    if (carbonVal !== undefined && carbonVal !== null) {
+      const carbonClass = carbonVal < 1 ? 'carbon-low' : carbonVal < 5 ? 'carbon-mid' : 'carbon-high';
+      ecoParts.push(`
+        <div class="eco-item">
+          <div class="eco-item-label">${esc(lb.carbon)}</div>
+          <div class="carbon-row">
+            <span class="carbon-val ${carbonClass}">${carbonVal.toFixed(2)}</span>
+            <span class="carbon-unit">kg CO₂/kg</span>
+          </div>
+        </div>`);
+    }
+    const hasTriman = /triman/.test((p.labels_tags || []).join(' '));
+    ecoParts.push(`
+      <div class="eco-item">
+        <div class="eco-item-label">${esc(lb.triman)}</div>
+        <div class="triman-row ${hasTriman ? 'triman-yes' : 'triman-no'}">
+          ${hasTriman
+            ? `<span class="triman-icon">♻️</span><span>${esc(lb.triman_yes.replace('♻️ ',''))}</span>`
+            : `<span class="triman-icon-no">✕</span><span>${esc(lb.triman_no)}</span>`}
+        </div>
+      </div>`);
+    const ecoSectionHtml = `
+      <div class="modal-section-block">
+        <div class="modal-section-title">${esc(L.sections_extra.eco)}</div>
+        <div class="eco-grid">${ecoParts.join('')}</div>
+      </div>`;
+
+    /* ── Assemble modal body ── */
     $('modalBody').innerHTML = `
       <div class="modal-header">
         ${imgHtml}
@@ -940,15 +1255,35 @@ async function openAltModal(code) {
         <div class="verdict-label">${L.verdict[verdictKey]}</div>
         <div class="verdict-reason">${esc(verdictReason)}</div>
       </div>
-      <div class="modal-nutr-grid">
-        ${modalNutr(N.energy,   energy,                      'kcal')}
-        ${modalNutr(N.sugars,   nutr.sugars_100g,            'g')}
-        ${modalNutr(N.fat,      nutr.fat_100g,               'g')}
-        ${modalNutr(N.satfat,   nutr['saturated-fat_100g'],  'g')}
-        ${modalNutr(N.salt,     nutr.salt_100g,              'g')}
-        ${modalNutr(N.proteins, nutr.proteins_100g,          'g')}
-        ${modalNutr(N.fiber,    nutr.fiber_100g,             'g')}
-      </div>`;
+      <div class="modal-section-block">
+        <div class="modal-section-title">${esc(L.sections.nutrition)}</div>
+        <div class="modal-nutr-grid">${buildModalNutrGrid()}</div>
+      </div>
+      <div class="modal-section-block">
+        <div class="modal-section-title">${esc(L.sections.warnings)}</div>
+        <div class="warnings-list">${warningsHtml}</div>
+      </div>
+      ${ingrHtml}
+      ${infoSectionHtml}
+      ${ecoSectionHtml}`;
+
+    /* ── Wire up tap-to-toggle unit pills ── */
+    $('modalBody').querySelectorAll('.modal-nutr-pill').forEach(pill => {
+      pill.addEventListener('click', () => {
+        const isAlt = pill.dataset.showing === 'alt';
+        const valEl = pill.closest('.modal-nutr-val-wrap').querySelector('.modal-nutr-val');
+        if (isAlt) {
+          valEl.textContent  = pill.dataset.val;
+          pill.textContent   = pill.dataset.unit;
+          delete pill.dataset.showing;
+        } else {
+          valEl.textContent  = pill.dataset.altVal;
+          pill.textContent   = pill.dataset.altUnit;
+          pill.dataset.showing = 'alt';
+        }
+      });
+    });
+
   } catch (_) {
     $('modalBody').innerHTML = `<div class="modal-loading">${esc(L.not_found)}</div>`;
   }
@@ -998,12 +1333,226 @@ function showQRModal(barcode, productName) {
   });
 }
 
+/* ══════════════════════════════════════════════
+   COMPARE MODE
+══════════════════════════════════════════════ */
+let compareMode = false;
+
+function setCompareMode(on) {
+  compareMode = on;
+  $('singleInputWrap').style.display  = on ? 'none'  : 'block';
+  $('compareInputWrap').style.display = on ? 'block' : 'none';
+  $('tabSingle').classList.toggle('active', !on);
+  $('tabCompare').classList.toggle('active',  on);
+  // hide result area when switching modes
+  const ra = $('resultArea');
+  ra.classList.remove('visible');
+  ra.innerHTML = '';
+  $('emptyState').classList.remove('empty-state-hidden');
+}
+
+async function fetchProductForCompare(barcode) {
+  const res  = await fetch(
+    `https://world.openfoodfacts.org/api/v0/product/${encodeURIComponent(barcode)}.json`,
+    { signal: AbortSignal.timeout(10000) }
+  );
+  const data = await res.json();
+  if (data.status !== 1 || !data.product) throw new Error('not_found');
+  return data.product;
+}
+
+async function handleCompare() {
+  const bA = $('barcodeA').value.trim().replace(/\s/g,'');
+  const bB = $('barcodeB').value.trim().replace(/\s/g,'');
+  if (!bA || !bB) return;
+
+  const btn      = $('compareBtn');
+  const spinner  = $('spinnerCmp');
+  const btnText  = $('compareBtnText');
+  const L        = LANGS[lang];
+
+  btn.disabled = true;
+  spinner.classList.add('active');
+  btnText.style.opacity = '0';
+  $('loadingBar').classList.add('active');
+
+  try {
+    const [pA, pB] = await Promise.all([
+      fetchProductForCompare(bA),
+      fetchProductForCompare(bB),
+    ]);
+    showCompareModal(pA, pB);
+  } catch (_) {
+    showError(L.not_found);
+    $('resultArea').classList.add('visible');
+    $('emptyState').classList.add('empty-state-hidden');
+  } finally {
+    btn.disabled = false;
+    spinner.classList.remove('active');
+    btnText.style.opacity = '1';
+    $('loadingBar').classList.remove('active');
+  }
+}
+
+function showCompareModal(pA, pB) {
+  const existing = document.getElementById('compareModal');
+  if (existing) existing.remove();
+
+  const L  = LANGS[lang];
+  const C  = L.compare;
+  const vA = computeVerdict(pA);
+  const vB = computeVerdict(pB);
+
+  // Score for winner: convert verdictKey to a number
+  const scoreOf = vk => vk === 'good' ? 2 : vk === 'ok' ? 1 : 0;
+  const sA = scoreOf(vA.verdictKey), sB = scoreOf(vB.verdictKey);
+  const winnerSide = sA > sB ? 'A' : sB > sA ? 'B' : null; // null = tie
+
+  const NUTR_ROWS = [
+    { key: 'energy-kcal',   icon: '🔥', label: 'Énergie', unit: 'kcal', higherIsBetter: false },
+    { key: 'carbohydrates', icon: '🌾', label: 'Glucides', unit: 'g',    higherIsBetter: false },
+    { key: 'sugars',        icon: '🍬', label: 'Sucres',   unit: 'g',    higherIsBetter: false },
+    { key: 'fat',           icon: '🧈', label: 'Lipides',  unit: 'g',    higherIsBetter: false },
+    { key: 'saturated-fat', icon: '🧈', label: 'G. sat.',  unit: 'g',    higherIsBetter: false },
+    { key: 'proteins',      icon: '🥩', label: 'Protéines',unit: 'g',    higherIsBetter: true  },
+    { key: 'fiber',         icon: '🌿', label: 'Fibres',   unit: 'g',    higherIsBetter: true  },
+    { key: 'salt',          icon: '🧂', label: 'Sel',      unit: 'g',    higherIsBetter: false },
+  ];
+
+  function getVal(p, key) {
+    return p.nutriments?.[key + '_100g'] ?? null;
+  }
+
+  function smartVal(v, unit) {
+    if (v === null) return { display: C.noData, unit: '' };
+    if (unit === 'g' && v < 1) return { display: (v * 1000).toFixed(1), unit: 'mg' };
+    return { display: v.toFixed(unit === 'kcal' ? 0 : 1), unit };
+  }
+
+  function barRow(row) {
+    const vA_raw = getVal(pA, row.key);
+    const vB_raw = getVal(pB, row.key);
+    const dA = smartVal(vA_raw, row.unit);
+    const dB = smartVal(vB_raw, row.unit);
+
+    // Determine which side wins this nutrient
+    let winA = false, winB = false;
+    if (vA_raw !== null && vB_raw !== null && vA_raw !== vB_raw) {
+      winA = row.higherIsBetter ? vA_raw > vB_raw : vA_raw < vB_raw;
+      winB = !winA;
+    }
+
+    // Relative bar widths
+    const maxVal = Math.max(vA_raw ?? 0, vB_raw ?? 0) || 1;
+    const pctA = vA_raw !== null ? Math.round((vA_raw / maxVal) * 100) : 0;
+    const pctB = vB_raw !== null ? Math.round((vB_raw / maxVal) * 100) : 0;
+
+    const clsA = winA ? 'cmp-bar-win' : 'cmp-bar-neu';
+    const clsB = winB ? 'cmp-bar-win' : 'cmp-bar-neu';
+    const valClsA = winA ? 'cmp-val-win' : '';
+    const valClsB = winB ? 'cmp-val-win' : '';
+
+    return `
+      <div class="cmp-row">
+        <div class="cmp-cell cmp-cell-a">
+          <span class="cmp-val ${valClsA}">${esc(dA.display)}<span class="cmp-unit">${esc(dA.unit)}</span></span>
+          <div class="cmp-bar-wrap cmp-bar-wrap-a">
+            <div class="cmp-bar ${clsA}" style="width:${pctA}%"></div>
+          </div>
+        </div>
+        <div class="cmp-label-center">
+          <span class="cmp-nutr-icon">${row.icon}</span>
+          <span class="cmp-nutr-name">${esc(row.label)}</span>
+        </div>
+        <div class="cmp-cell cmp-cell-b">
+          <div class="cmp-bar-wrap cmp-bar-wrap-b">
+            <div class="cmp-bar ${clsB}" style="width:${pctB}%"></div>
+          </div>
+          <span class="cmp-val ${valClsB}">${esc(dB.display)}<span class="cmp-unit">${esc(dB.unit)}</span></span>
+        </div>
+      </div>`;
+  }
+
+  function productHeader(p, vk, isWinner) {
+    const nutri = (p.nutriscore_grade || '').toUpperCase();
+    const imgUrl = p.image_front_small_url || p.image_front_url || '';
+    const img = imgUrl
+      ? `<img class="cmp-product-img" src="${esc(imgUrl)}" alt="" loading="lazy">`
+      : `<div class="cmp-product-no-img">🥫</div>`;
+    const badge = nutri ? `<span class="badge badge-nutri-${nutri.toLowerCase()} cmp-nutri-badge">Nutri-Score ${nutri}</span>` : '';
+    const winBadge = isWinner ? `<div class="cmp-winner-crown">🏆</div>` : '';
+    return `
+      <div class="cmp-header-card ${isWinner ? 'cmp-header-winner' : ''}">
+        ${winBadge}
+        ${img}
+        <div class="cmp-product-name">${esc(p.product_name || '—')}</div>
+        <div class="cmp-product-brand">${esc(p.brands || '')}</div>
+        ${badge}
+        <div class="cmp-verdict cmp-verdict-${vk}">${L.verdict[vk]}</div>
+      </div>`;
+  }
+
+  const winnerBanner = winnerSide
+    ? `<div class="cmp-winner-banner">
+         ${C.winner} : <strong>${winnerSide === 'A' ? esc(pA.product_name || 'A') : esc(pB.product_name || 'B')}</strong>
+       </div>`
+    : `<div class="cmp-winner-banner cmp-tie-banner">${C.tie}</div>`;
+
+  const overlay = document.createElement('div');
+  overlay.id = 'compareModal';
+  overlay.innerHTML = `
+    <div class="modal-box compare-modal-box" role="dialog" aria-modal="true">
+      <button class="modal-close" id="cmpClose" aria-label="Fermer">✕</button>
+
+      <div class="cmp-modal-title">⚖️ ${esc(C.title)}</div>
+
+      <div class="cmp-headers">
+        ${productHeader(pA, vA.verdictKey, winnerSide === 'A')}
+        <div class="cmp-headers-vs">VS</div>
+        ${productHeader(pB, vB.verdictKey, winnerSide === 'B')}
+      </div>
+
+      ${winnerBanner}
+
+      <div class="cmp-section-title">${esc(L.sections.nutrition)} — ${esc(C.perHundred)}</div>
+      <div class="cmp-rows">
+        <div class="cmp-col-labels">
+          <span class="cmp-col-tag cmp-col-a">A</span>
+          <span class="cmp-col-tag cmp-col-b">B</span>
+        </div>
+        ${NUTR_ROWS.map(barRow).join('')}
+      </div>
+
+      <div class="cmp-actions">
+        <button class="cmp-action-btn" id="cmpFullA">🔍 ${esc(C.viewFull)} A</button>
+        <button class="cmp-action-btn" id="cmpFullB">🔍 ${esc(C.viewFull)} B</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  const close = () => overlay.remove();
+  $('cmpClose').addEventListener('click', close);
+  overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+  document.addEventListener('keydown', function h(e) {
+    if (e.key === 'Escape') { close(); document.removeEventListener('keydown', h); }
+  });
+
+  $('cmpFullA').addEventListener('click', () => { close(); setCompareMode(false); lastProduct = pA; renderProduct(pA); });
+  $('cmpFullB').addEventListener('click', () => { close(); setCompareMode(false); lastProduct = pB; renderProduct(pB); });
+}
+
 /* ── Events ── */
 $('barcodeInput').addEventListener('keydown', e => {
   if (e.key === 'Enter') handleScan();
 });
 
 $('scanBtn').addEventListener('click', () => handleScan());
+
+$('tabSingle').addEventListener('click',  () => setCompareMode(false));
+$('tabCompare').addEventListener('click', () => setCompareMode(true));
+$('compareBtn').addEventListener('click', () => handleCompare());
+$('barcodeA').addEventListener('keydown', e => { if (e.key === 'Enter') handleCompare(); });
+$('barcodeB').addEventListener('keydown', e => { if (e.key === 'Enter') handleCompare(); });
 
 document.querySelectorAll('.example-chip').forEach(chip => {
   chip.addEventListener('click', () => {
