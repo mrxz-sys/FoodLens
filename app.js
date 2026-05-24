@@ -320,6 +320,10 @@ const LANGS = {
 
 let lang = 'fr';
 let lastProduct = null;
+const OFF = barcode =>
+  `https://corsproxy.io/?url=${encodeURIComponent(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`)}`;
+const OFF_SEARCH = url =>
+  `https://corsproxy.io/?url=${encodeURIComponent(url)}`;
 const productCache = new Map();
 /* ── Helpers ── */
 const $ = id => document.getElementById(id);
@@ -367,16 +371,10 @@ async function handleScan() {
     const barcode2 = $('barcodeInput').value.trim().replace(/\s/g, '');
     let product = productCache.get(barcode2);
     if (!product) {
-      const res = await fetch(
-        `https://world.openfoodfacts.org/api/v0/product/${encodeURIComponent(barcode2)}.json`,
-        { signal: AbortSignal.timeout(10000) }
-      );
+const res = await fetch(OFF(barcode2), { signal: AbortSignal.timeout(10000) });
       if (res.status === 429) {
         await new Promise(r => setTimeout(r, 1500));
-        const res2 = await fetch(
-          `https://world.openfoodfacts.org/api/v0/product/${encodeURIComponent(barcode2)}.json`,
-          { signal: AbortSignal.timeout(10000) }
-        );
+const res2 = await fetch(OFF(barcode2), { signal: AbortSignal.timeout(10000) });
         if (!res2.ok) throw new Error('HTTP ' + res2.status);
         const data2 = await res2.json();
         if (data2.status !== 1 || !data2.product) { showError(LANGS[lang].not_found); return; }
@@ -962,7 +960,7 @@ async function tryFetchAlt(catTag, excludeCode, currentRank) {
   const gradeOrder = { a:1, b:2, c:3, d:4, e:5 };
   try {
     const url = `https://world.openfoodfacts.org/api/v2/search?categories_tags=${encodeURIComponent(catTag)}&page_size=50&fields=code,product_name,brands,nutriscore_grade,nova_group,nutriments`;
-    const res  = await fetch(url, { signal: AbortSignal.timeout(8000) });
+ const res  = await fetch(OFF_SEARCH(url), { signal: AbortSignal.timeout(8000) });
     if (!res.ok) return [];
     const data = await res.json();
 
@@ -1038,7 +1036,7 @@ async function openAltModal(code) {
   });
 
   try {
-    const res  = await fetch(`https://world.openfoodfacts.org/api/v0/product/${encodeURIComponent(code)}.json`,
+  const res  = await fetch(OFF(code),
       { signal: AbortSignal.timeout(10000) });
     const data = await res.json();
     if (data.status !== 1 || !data.product) throw new Error();
@@ -1366,7 +1364,7 @@ function setCompareMode(on) {
 
 async function fetchProductForCompare(barcode) {
   if (productCache.has(barcode)) return productCache.get(barcode);
-  const url = `https://world.openfoodfacts.org/api/v0/product/${encodeURIComponent(barcode)}.json`;
+ const url = OFF(barcode);
   let res = await fetch(url, { signal: AbortSignal.timeout(10000) });
   if (res.status === 429) {
     await new Promise(r => setTimeout(r, 1500));
