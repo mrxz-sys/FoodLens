@@ -1366,6 +1366,10 @@ async function handleCompare() {
   const bB = $('barcodeB').value.trim().replace(/\s/g,'');
   if (!bA || !bB) return;
 
+  // 🔥 NETTOYAGE : supprime tout modal existant avant d'en créer un nouveau
+  const existingModal = document.getElementById('compareModal');
+  if (existingModal) existingModal.remove();
+
   const btn      = $('compareBtn');
   const spinner  = $('spinnerCmp');
   const btnText  = $('compareBtnText');
@@ -1382,7 +1386,8 @@ async function handleCompare() {
       fetchProductForCompare(bB),
     ]);
     showCompareModal(pA, pB);
-  } catch (_) {
+  } catch (err) {
+    console.error(err);
     showError(L.not_found);
     $('resultArea').classList.add('visible');
     $('emptyState').classList.add('empty-state-hidden');
