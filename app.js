@@ -321,10 +321,9 @@ const LANGS = {
 let lang = 'fr';
 let lastProduct = null;
 const OFF = barcode =>
-  `https://corsproxy.io/?url=${encodeURIComponent(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`)}`;
+  `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`)}`;
 const OFF_SEARCH = url =>
-  `https://corsproxy.io/?url=${encodeURIComponent(url)}`;
-const productCache = new Map();
+  `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
 /* ── Helpers ── */
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');

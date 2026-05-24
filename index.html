@@ -2,7 +2,7 @@
 <html lang="fr" dir="ltr">
 <head>
   <meta charset="UTF-8" />
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://world.openfoodfacts.org https://prices.openfoodfacts.org https://api.qrserver.com https://corsproxy.io;">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://world.openfoodfacts.org https://prices.openfoodfacts.org https://api.qrserver.com https://api.allorigins.win;">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <meta name="theme-color" content="#0a0a0f" />
   <meta name="description" content="Scannez un produit alimentaire et obtenez son analyse nutritionnelle complète en Français, Arabe ou Darija." />
@@ -39,37 +39,65 @@
 
   <!-- Scanner -->
   <section class="scanner-section">
-    <div class="scanner-card">
-      <div class="loading-bar" id="loadingBar"></div>
+   <div class="scanner-card">
+  <div class="loading-bar" id="loadingBar"></div>
 
-      <div class="input-label" id="labelScan">Code-barres</div>
-      <div class="barcode-input-row">
-        <input
-          id="barcodeInput"
-          class="barcode-field"
-          type="text"
-          inputmode="numeric"
-          placeholder="ex: 3017620422003"
-          autocomplete="off"
-          aria-label="Code-barres du produit"
-        />
-        <button class="scan-btn" id="scanBtn" aria-label="Analyser">
-          <div class="scan-icon" aria-hidden="true">
-            <span></span><span></span><span></span>
-          </div>
-          <div class="spinner" id="spinner"></div>
-          <span id="scanBtnText">Analyser</span>
-        </button>
+  <!-- Mode tabs -->
+  <div class="mode-tabs">
+    <button class="mode-tab active" id="tabSingle" data-mode="single">🔍 <span id="tabSingleLabel">Analyser</span></button>
+    <button class="mode-tab" id="tabCompare" data-mode="compare">⚖️ <span id="tabCompareLabel">Comparer</span></button>
+  </div>
+
+  <!-- Single mode input -->
+  <div id="singleInputWrap">
+    <div class="input-label" id="labelScan">Code-barres</div>
+    <div class="barcode-input-row">
+      <input
+        id="barcodeInput"
+        class="barcode-field"
+        type="text"
+        inputmode="numeric"
+        placeholder="ex: 3017620422003"
+        autocomplete="off"
+        aria-label="Code-barres du produit"
+      />
+      <button class="scan-btn" id="scanBtn" aria-label="Analyser">
+        <div class="scan-icon" aria-hidden="true">
+          <span></span><span></span><span></span>
+        </div>
+        <div class="spinner" id="spinner"></div>
+        <span id="scanBtnText">Analyser</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Compare mode inputs -->
+  <div id="compareInputWrap" style="display:none">
+    <div class="compare-inputs">
+      <div class="compare-input-block">
+        <div class="input-label" id="labelA">Produit A</div>
+        <input id="barcodeA" class="barcode-field" type="text" inputmode="numeric" placeholder="ex: 3017620422003" autocomplete="off"/>
       </div>
-
-      <div class="quick-examples">
-        <span class="chip-label" id="labelTry">Essayer :</span>
-        <button class="example-chip" data-barcode="3017620422003">🍫 Nutella</button>
-        <button class="example-chip" data-barcode="5449000000996">🥤 Coca-Cola</button>
-        <button class="example-chip" data-barcode="7622300489366">🍪 Oreo</button>
-        <button class="example-chip" data-barcode="8076800105155">🍝 Barilla</button>
+      <div class="compare-vs">VS</div>
+      <div class="compare-input-block">
+        <div class="input-label" id="labelB">Produit B</div>
+        <input id="barcodeB" class="barcode-field" type="text" inputmode="numeric" placeholder="ex: 5449000000996" autocomplete="off"/>
       </div>
     </div>
+    <button class="scan-btn compare-scan-btn" id="compareBtn">
+      <div class="spinner" id="spinnerCmp"></div>
+      <span id="compareBtnText">⚖️ Comparer</span>
+    </button>
+  </div>
+
+  <div class="quick-examples">
+    <span class="chip-label" id="labelTry">Essayer :</span>
+    <button class="example-chip" data-barcode="3017620422003">🍫 Nutella</button>
+    <button class="example-chip" data-barcode="5449000000996">🥤 Coca-Cola</button>
+    <button class="example-chip" data-barcode="7622300489366">🍪 Oreo</button>
+    <button class="example-chip" data-barcode="8076800105155">🍝 Barilla</button>
+  </div>
+</div>
   </section>
 
   <!-- Results -->
