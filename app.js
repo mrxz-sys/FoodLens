@@ -1450,48 +1450,57 @@ function showCompareModal(pA, pB) {
   }
 
   function barRow(row) {
-    const vA_raw = getVal(pA, row.key);
-    const vB_raw = getVal(pB, row.key);
-    const dA = smartVal(vA_raw, row.unit);
-    const dB = smartVal(vB_raw, row.unit);
+  const vA_raw = getVal(pA, row.key);
+  const vB_raw = getVal(pB, row.key);
+  if (vA_raw === null && vB_raw === null) return ''; // skip fully empty rows
 
-    // Determine which side wins this nutrient
-    let winA = false, winB = false;
-    if (vA_raw !== null && vB_raw !== null && vA_raw !== vB_raw) {
-      winA = row.higherIsBetter ? vA_raw > vB_raw : vA_raw < vB_raw;
-      winB = !winA;
-    }
+  const dA = smartVal(vA_raw, row.unit);
+  const dB = smartVal(vB_raw, row.unit);
 
-    // Relative bar widths
-    const maxVal = Math.max(vA_raw ?? 0, vB_raw ?? 0) || 1;
-    const pctA = vA_raw !== null ? Math.round((vA_raw / maxVal) * 100) : 0;
-    const pctB = vB_raw !== null ? Math.round((vB_raw / maxVal) * 100) : 0;
-
-    const clsA = winA ? 'cmp-bar-win' : 'cmp-bar-neu';
-    const clsB = winB ? 'cmp-bar-win' : 'cmp-bar-neu';
-    const valClsA = winA ? 'cmp-val-win' : '';
-    const valClsB = winB ? 'cmp-val-win' : '';
-
-    return `
-      <div class="cmp-row">
-        <div class="cmp-cell cmp-cell-a">
-          <span class="cmp-val ${valClsA}">${esc(dA.display)}<span class="cmp-unit">${esc(dA.unit)}</span></span>
-          <div class="cmp-bar-wrap cmp-bar-wrap-a">
-            <div class="cmp-bar ${clsA}" style="width:${pctA}%"></div>
-          </div>
-        </div>
-        <div class="cmp-label-center">
-          <span class="cmp-nutr-icon">${row.icon}</span>
-          <span class="cmp-nutr-name">${esc(row.label)}</span>
-        </div>
-        <div class="cmp-cell cmp-cell-b">
-          <div class="cmp-bar-wrap cmp-bar-wrap-b">
-            <div class="cmp-bar ${clsB}" style="width:${pctB}%"></div>
-          </div>
-          <span class="cmp-val ${valClsB}">${esc(dB.display)}<span class="cmp-unit">${esc(dB.unit)}</span></span>
-        </div>
-      </div>`;
+  // Same color thresholds as main view
+  function nutrCls(key, val) {
+    if (val === null) return 'cmp-bar-na';
+    const k = key.toLowerCase();
+    if (k === 'energy-kcal')   return val <= 150 ? 'cmp-bar-good' : val <= 400 ? 'cmp-bar-warn' : 'cmp-bar-bad';
+    if (k === 'carbohydrates') return val <= 20  ? 'cmp-bar-good' : val <= 50  ? 'cmp-bar-warn' : 'cmp-bar-bad';
+    if (k === 'sugars')        return val <= 5   ? 'cmp-bar-good' : val <= 22  ? 'cmp-bar-warn' : 'cmp-bar-bad';
+    if (k === 'fat')           return val <= 10  ? 'cmp-bar-good' : val <= 20  ? 'cmp-bar-warn' : 'cmp-bar-bad';
+    if (k === 'saturated-fat') return val <= 3   ? 'cmp-bar-good' : val <= 10  ? 'cmp-bar-warn' : 'cmp-bar-bad';
+    if (k === 'proteins')      return val >= 10  ? 'cmp-bar-good' : val >= 5   ? 'cmp-bar-warn' : 'cmp-bar-na';
+    if (k === 'fiber')         return val >= 6   ? 'cmp-bar-good' : val >= 3   ? 'cmp-bar-warn' : 'cmp-bar-na';
+    if (k === 'salt')          return val <= 0.6 ? 'cmp-bar-good' : val <= 1.5 ? 'cmp-bar-warn' : 'cmp-bar-bad';
+    return 'cmp-bar-neu';
   }
+
+  // Absolute reference max (so bar fill = nutritional significance)
+  const REF = { 'energy-kcal':900, carbohydrates:100, sugars:100, fat:100, 'saturated-fat':50, proteins:50, fiber:20, salt:5 };
+  const refMax = REF[row.key] || 100;
+  const pctA = vA_raw !== null ? Math.min(Math.round((vA_raw / refMax) * 100), 100) : 0;
+  const pctB = vB_raw !== null ? Math.min(Math.round((vB_raw / refMax) * 100), 100) : 0;
+
+  const clsA = nutrCls(row.key, vA_raw);
+  const clsB = nutrCls(row.key, vB_raw);
+
+  return `
+    <div class="cmp-row">
+      <div class="cmp-cell cmp-cell-a">
+        <span class="cmp-val">${esc(dA.display)}<span class="cmp-unit">${esc(dA.unit)}</span></span>
+        <div class="cmp-bar-wrap cmp-bar-wrap-a">
+          <div class="cmp-bar ${clsA}" style="width:${pctA}%"></div>
+        </div>
+      </div>
+      <div class="cmp-label-center">
+        <span class="cmp-nutr-icon">${row.icon}</span>
+        <span class="cmp-nutr-name">${esc(row.label)}</span>
+      </div>
+      <div class="cmp-cell cmp-cell-b">
+        <div class="cmp-bar-wrap cmp-bar-wrap-b">
+          <div class="cmp-bar ${clsB}" style="width:${pctB}%"></div>
+        </div>
+        <span class="cmp-val">${esc(dB.display)}<span class="cmp-unit">${esc(dB.unit)}</span></span>
+      </div>
+    </div>`;
+}
 
   function productHeader(p, vk, isWinner) {
     const nutri = (p.nutriscore_grade || '').toUpperCase();
