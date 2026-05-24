@@ -1172,3 +1172,28 @@ footer a { color: inherit; }
   text-align: center;
 }
 .cmp-action-btn:hover { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+/* Bar colors matching main view */
+.cmp-bar-good { background: #22c55e; }
+.cmp-bar-warn { background: #f59e0b; }
+.cmp-bar-bad  { background: #ef4444; }
+.cmp-bar-na   { background: transparent; width: 0 !important; }
+.cmp-bar-neu  { background: #555; }
+
+/* Value + bar on same line */
+.cmp-cell {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+}
+.cmp-cell-a {
+  flex-direction: row;        /* [value] [bar→] */
+  justify-content: flex-end;
+}
+.cmp-cell-b {
+  flex-direction: row;        /* [←bar] [value] */
+  justify-content: flex-start;
+}
+.cmp-bar-wrap {
+  flex: 1;
+  min-width: 30px;
+}
