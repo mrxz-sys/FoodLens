@@ -55,6 +55,20 @@ const LANGS = {
     share_sub:    'Scan to analyze this product',
     share_copy:   'Copy',
     share_copied: '✓ Copied!',
+burn: {
+  title: '🔥 Burn it off',
+  portion: 'Portion eaten (g)',
+  weight: 'Your weight (kg)',
+  kcal: 'kcal total',
+  activities: [
+    { id:'walk',  label:'🚶 Walking',    met:3.5 },
+    { id:'hike',  label:'🥾 Brisk walk', met:5.0 },
+    { id:'run',   label:'🏃 Running',    met:9.0 },
+    { id:'bike',  label:'🚴 Cycling',    met:7.0 },
+    { id:'swim',  label:'🏊 Swimming',   met:8.0 },
+    { id:'gym',   label:'🏋️ Weights',    met:5.0 },
+  ],
+},
     dir: 'ltr',
     sections_extra: { product_info: 'Product information', eco: 'Environmental impact' },
     labels: {
@@ -132,6 +146,20 @@ const LANGS = {
     share_sub:    'Scannez pour analyser ce produit',
     share_copy:   'Copier',
     share_copied: '✓ Copié !',
+burn: {
+  title: '🔥 Brûler les calories',
+  portion: 'Portion mangée (g)',
+  weight: 'Votre poids (kg)',
+  kcal: 'kcal total',
+  activities: [
+    { id:'walk',  label:'🚶 Marche',       met:3.5 },
+    { id:'hike',  label:'🥾 Marche rapide',met:5.0 },
+    { id:'run',   label:'🏃 Course',        met:9.0 },
+    { id:'bike',  label:'🚴 Vélo',          met:7.0 },
+    { id:'swim',  label:'🏊 Natation',      met:8.0 },
+    { id:'gym',   label:'🏋️ Muscu',         met:5.0 },
+  ],
+},
     dir: 'ltr',
     sections_extra: { product_info: 'Informations produit', eco: 'Impact environnemental' },
     labels: {
@@ -209,6 +237,20 @@ const LANGS = {
     share_sub:    'امسح للتحليل',
     share_copy:   'نسخ',
     share_copied: '✓ تم النسخ!',
+burn: {
+  title: '🔥 احرق السعرات',
+  portion: 'الكمية المأكولة (غ)',
+  weight: 'وزنك (كغ)',
+  kcal: 'سعرة حرارية',
+  activities: [
+    { id:'walk',  label:'🚶 مشي',       met:3.5 },
+    { id:'hike',  label:'🥾 مشي سريع',  met:5.0 },
+    { id:'run',   label:'🏃 جري',        met:9.0 },
+    { id:'bike',  label:'🚴 دراجة',      met:7.0 },
+    { id:'swim',  label:'🏊 سباحة',      met:8.0 },
+    { id:'gym',   label:'🏋️ رياضة',      met:5.0 },
+  ],
+},
     dir: 'rtl',
     sections_extra: { product_info: 'معلومات المنتج', eco: 'الأثر البيئي' },
     labels: {
@@ -286,6 +328,20 @@ const LANGS = {
     share_sub:    'سكان باش تحلل',
     share_copy:   'نسخ',
     share_copied: '✓ تنسخ!',
+burn: {
+  title: '🔥 احرق السعرات',
+  portion: 'الكمية المأكولة (غ)',
+  weight: 'وزنك (كغ)',
+  kcal: 'سعرة حرارية',
+  activities: [
+    { id:'walk',  label:'🚶 مشي',       met:3.5 },
+    { id:'hike',  label:'🥾 مشي سريع',  met:5.0 },
+    { id:'run',   label:'🏃 جري',        met:9.0 },
+    { id:'bike',  label:'🚴 دراجة',      met:7.0 },
+    { id:'swim',  label:'🏊 سباحة',      met:8.0 },
+    { id:'gym',   label:'🏋️ رياضة',      met:5.0 },
+  ],
+},
     dir: 'rtl',
     sections_extra: { product_info: 'معلومات المنتوج', eco: 'التأثير البيئي' },
     labels: {
@@ -458,8 +514,9 @@ function computeVerdict(p) {
   if (proteins !== undefined && proteins >= 10) score += 1;
   if (nova >= 1 && nova <= 2)                   score += 1;
 
+  // low_calorie gets a good score for comparison purposes
   if (flags.includes('low_calorie')) {
-    return { verdictKey: 'ok', flags, energy, sugar, fat, satfat, salt, proteins, fiber,
+    return { verdictKey: 'ok', score: 5, flags, energy, sugar, fat, satfat, salt, proteins, fiber,
              verdictReason: LANGS[lang].reasons.low_calorie() };
   }
 
@@ -475,7 +532,7 @@ function computeVerdict(p) {
     verdictKey === 'good'          ? R.balanced()           :
     R.default();
 
-  return { verdictKey, flags, energy, sugar, fat, satfat, salt, proteins, fiber, verdictReason };
+  return { verdictKey, score, flags, energy, sugar, fat, satfat, salt, proteins, fiber, verdictReason };
 }
 
 /* ── Render ── */
@@ -735,6 +792,8 @@ function buildNutritionGrid() {
     ${ingText}
     ${infoHtml}
     ${ecoHtml}
+    ${buildBurnSection(p, L)}
+    ${buildOrganSection(p, L)}
     ${altHtml}
 
     <div class="share-row">
@@ -766,6 +825,18 @@ function buildNutritionGrid() {
       }
     });
   });
+
+// line 770 (blank line)
+  const kcal100 = p.nutriments?.['energy-kcal_100g'];
+  if (kcal100) {
+    updateBurnDisplay(kcal100);
+    ['burnPortion','burnWeight'].forEach(id => {
+      document.getElementById(id)?.addEventListener('input', () => updateBurnDisplay(kcal100));
+    });
+  }
+
+  const portion = parseFloat(localStorage.getItem('fl_portion')) || 100;
+  renderOrganImpact(p.nutriments || {}, portion);
 
   fetchAlternative(p);
 
@@ -863,6 +934,196 @@ function buildEcoSection(p, L) {
     <div class="section-title">${esc(L.sections_extra.eco)}</div>
     <div class="eco-grid">${parts.join('')}</div>
   </div>`;
+}
+
+/* ── Burn-it-off Section ── */
+function buildBurnSection(p, L) {
+  const kcal100 = p.nutriments?.['energy-kcal_100g'];
+  if (!kcal100) return '';
+  const B = L.burn;
+  const savedPortion = localStorage.getItem('fl_portion') || '100';
+  const savedWeight  = localStorage.getItem('fl_weight')  || '70';
+  return `
+  <div class="section-block" id="burnSection">
+    <div class="section-title">${B.title}</div>
+    <div class="burn-inputs">
+      <label class="burn-label">${B.portion}
+        <input class="burn-input" id="burnPortion" type="number" min="1" max="2000" value="${esc(savedPortion)}">
+      </label>
+      <label class="burn-label">${B.weight}
+        <input class="burn-input" id="burnWeight" type="number" min="20" max="300" value="${esc(savedWeight)}">
+      </label>
+    </div>
+    <div class="burn-kcal-display" id="burnKcalDisplay"></div>
+    <div class="burn-activities" id="burnActivities"></div>
+  </div>`;
+}
+
+function updateBurnDisplay(kcal100) {
+  const portion  = parseFloat(document.getElementById('burnPortion')?.value) || 100;
+  const weight   = parseFloat(document.getElementById('burnWeight')?.value)  || 70;
+  const totalKcal = kcal100 * portion / 100;
+  const L = LANGS[lang];
+  const B = L.burn;
+
+  localStorage.setItem('fl_portion', portion);
+  localStorage.setItem('fl_weight',  weight);
+
+  const kcalEl = document.getElementById('burnKcalDisplay');
+  const actEl  = document.getElementById('burnActivities');
+  if (!kcalEl || !actEl) return;
+
+  kcalEl.textContent = `${totalKcal.toFixed(0)} ${B.kcal}`;
+
+  actEl.innerHTML = B.activities.map(a => {
+    const mins = Math.round((totalKcal * 60) / (a.met * weight));
+    const hrs  = Math.floor(mins / 60);
+    const rem  = mins % 60;
+    const timeStr = hrs > 0 ? `${hrs}h${rem.toString().padStart(2,'0')}` : `${mins} min`;
+    const pct = Math.min(100, (mins / 120) * 100); // bar maxes at 2h
+    return `
+      <div class="burn-row">
+        <span class="burn-act-label">${a.label}</span>
+        <div class="burn-bar-track"><div class="burn-bar-fill" style="width:${pct}%"></div></div>
+        <span class="burn-time">${timeStr}</span>
+      </div>`;
+  }).join('');
+}
+
+const ORGAN_RULES = [
+  { nutriment:'sugars_100g',        warn:10, danger:20, organs:['liver','brain','pancreas'],    reason:'High sugar' },
+  { nutriment:'saturated-fat_100g', warn:5,  danger:10, organs:['heart','liver'],               reason:'Saturated fat' },
+  { nutriment:'fat_100g',           warn:17, danger:30, organs:['liver','heart'],               reason:'High fat' },
+  { nutriment:'salt_100g',          warn:1.5,danger:3,  organs:['kidneys','heart'],             reason:'High salt' },
+  { nutriment:'fiber_100g',         good:3,             organs:['intestines','stomach'],        reason:'Good fiber' },
+  { nutriment:'proteins_100g',      good:10,            organs:['heart','brain'],               reason:'Good protein' },
+  { nutriment:'energy-kcal_100g',   warn:300,danger:500,organs:['liver','heart'],              reason:'High calories' },
+];
+
+function buildOrganSection(p, L) {
+  return `
+  <div class="section-block" id="organSection">
+    <div class="section-title">🫀 ${L.organ_title || 'Organ Impact'}</div>
+    <div class="organ-viz-layout">
+      <div class="organ-avatar-wrap" id="organAvatarWrap">
+        <img class="organ-avatar-base" src="human_avatar.png" alt="Body"/>
+        <svg class="organ-svg-overlay" id="organSVG" viewBox="0 0 100 200" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <filter id="glow-danger" x="-80%" y="-80%" width="260%" height="260%">
+              <feGaussianBlur stdDeviation="3.5" result="blur"/>
+              <feMerge><feMergeNode in="blur"/><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+            <filter id="glow-warn" x="-80%" y="-80%" width="260%" height="260%">
+              <feGaussianBlur stdDeviation="2.5" result="blur"/>
+              <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+            <filter id="glow-good" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="1.5" result="blur"/>
+              <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+          </defs>
+        </svg>
+      </div>
+      <div class="organ-legend" id="organLegend">
+        <div class="organ-legend-hint">Tap an organ for details</div>
+      </div>
+    </div>
+    <div class="organ-score-row">
+      <span class="organ-score-label" id="organScoreText">—</span>
+      <div class="organ-score-track"><div class="organ-score-fill" id="organScoreFill"></div></div>
+    </div>
+  </div>`;
+}
+
+function renderOrganImpact(nutriments, portion) {
+  const svg    = document.getElementById('organSVG');
+  const legend = document.getElementById('organLegend');
+  if (!svg || !legend) return;
+
+  // Remove previous organ glows
+  svg.querySelectorAll('.organ-glow').forEach(el => el.remove());
+  legend.innerHTML = '';
+
+  const factor = (portion || 100) / 100;
+  const impacts = {};
+  const rank = { good:0, warn:1, danger:2 };
+
+  for (const rule of ORGAN_RULES) {
+    const val = (nutriments[rule.nutriment] || 0) * factor;
+    if (!val) continue;
+    let level = null;
+    if (rule.good   && val >= rule.good)   level = 'good';
+    if (rule.warn   && val >= rule.warn)   level = 'warn';
+    if (rule.danger && val >= rule.danger) level = 'danger';
+    if (!level) continue;
+    for (const id of rule.organs) {
+      if (!impacts[id]) impacts[id] = { level, reasons:[] };
+      if (rank[level] > rank[impacts[id].level]) impacts[id].level = level;
+      impacts[id].reasons.push(rule.reason);
+    }
+  }
+
+  const COLORS = {
+    danger: { fill:'rgba(255,50,50,0.55)',  stroke:'#ff3b3b' },
+    warn:   { fill:'rgba(255,160,0,0.45)',  stroke:'#ffaa00' },
+    good:   { fill:'rgba(57,255,20,0.25)',  stroke:'#39ff14' },
+  };
+
+  let dangerCount = 0, warnCount = 0;
+
+  for (const organ of ORGAN_DEFS) {
+    const impact  = impacts[organ.id];
+    const level   = impact?.level || 'good';
+    const reasons = impact?.reasons || ['No significant impact'];
+
+    if (level === 'danger') dangerCount++;
+    else if (level === 'warn') warnCount++;
+
+    const col = COLORS[level];
+
+    const ellipse = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+    ellipse.setAttribute('cx', organ.cx);
+    ellipse.setAttribute('cy', organ.cy);
+    ellipse.setAttribute('rx', organ.rx);
+    ellipse.setAttribute('ry', organ.ry);
+    ellipse.setAttribute('fill', col.fill);
+    ellipse.setAttribute('stroke', col.stroke);
+    ellipse.setAttribute('stroke-width', '0.6');
+    ellipse.setAttribute('filter', `url(#glow-${level})`);
+    ellipse.setAttribute('style', 'mix-blend-mode:screen;cursor:pointer');
+    ellipse.classList.add('organ-glow');
+
+    // Tooltip on click
+    ellipse.addEventListener('click', () => {
+      svg.querySelectorAll('.organ-glow').forEach(e => e.setAttribute('opacity','1'));
+      ellipse.setAttribute('opacity','1');
+      legend.innerHTML = `
+        <div class="organ-legend-item ${level}">
+          <div class="organ-legend-dot ${level}"></div>
+          <div><span class="organ-legend-name">${organ.label}</span>
+          <span class="organ-legend-reason">${reasons.join(', ')}</span></div>
+        </div>`;
+    });
+
+    svg.appendChild(ellipse);
+
+    if (level !== 'good') {
+      const item = document.createElement('div');
+      item.className = `organ-legend-item ${level}`;
+      item.innerHTML = `<div class="organ-legend-dot ${level}"></div><div><span class="organ-legend-name">${organ.label}</span><span class="organ-legend-reason">${reasons.join(', ')}</span></div>`;
+      legend.appendChild(item);
+    }
+  }
+
+  if (!legend.children.length) {
+    legend.innerHTML = '<div class="organ-legend-hint" style="color:var(--accent)">✅ No organs at risk</div>';
+  }
+
+  const score = Math.round(((dangerCount * 2 + warnCount) / (ORGAN_DEFS.length * 2)) * 100);
+  const fill  = document.getElementById('organScoreFill');
+  const text  = document.getElementById('organScoreText');
+  if (fill) { fill.style.width = score + '%'; fill.style.background = score > 50 ? 'var(--danger)' : score > 25 ? 'var(--warn)' : 'var(--accent)'; }
+  if (text) text.textContent = score === 0 ? '✅ Healthy' : score < 30 ? '⚠️ Moderate risk' : '🔴 High risk';
 }
 
 /* ── Category emoji ── */
@@ -1378,7 +1639,6 @@ async function handleCompare() {
   const bB = $('barcodeB').value.trim().replace(/\s/g,'');
   if (!bA || !bB) return;
 
-  // 🔥 NETTOYAGE : supprime tout modal existant avant d'en créer un nouveau
   const existingModal = document.getElementById('compareModal');
   if (existingModal) existingModal.remove();
 
@@ -1392,22 +1652,29 @@ async function handleCompare() {
   btnText.style.opacity = '0';
   $('loadingBar').classList.add('active');
 
+  let pA, pB;
   try {
-const pA = await fetchProductForCompare(bA);
+    pA = await fetchProductForCompare(bA);
     await new Promise(r => setTimeout(r, 600));
-    const pB = await fetchProductForCompare(bB);
-    showCompareModal(pA, pB);
+    pB = await fetchProductForCompare(bB);
   } catch (err) {
-    console.error(err);
-    showError(L.not_found);
+    if (!pA) showError(`Produit A (${bA}) introuvable.`);
+    else showError(`Produit B (${bB}) introuvable.`);
     $('resultArea').classList.add('visible');
     $('emptyState').classList.add('empty-state-hidden');
-  } finally {
     btn.disabled = false;
     spinner.classList.remove('active');
     btnText.style.opacity = '1';
     $('loadingBar').classList.remove('active');
+    return;
   }
+
+  showCompareModal(pA, pB);
+
+  btn.disabled = false;
+  spinner.classList.remove('active');
+  btnText.style.opacity = '1';
+  $('loadingBar').classList.remove('active');
 }
 
 function showCompareModal(pA, pB) {
@@ -1421,9 +1688,40 @@ function showCompareModal(pA, pB) {
 
   // Score for winner: convert verdictKey to a number
   const scoreOf = vk => vk === 'good' ? 2 : vk === 'ok' ? 1 : 0;
-  const sA = scoreOf(vA.verdictKey), sB = scoreOf(vB.verdictKey);
-  const winnerSide = sA > sB ? 'A' : sB > sA ? 'B' : null; // null = tie
+const sA = vA.score ?? 0, sB = vB.score ?? 0;
+const winnerSide = sA > sB ? 'A' : sB > sA ? 'B' : null;
+// Category mismatch warning — only fires when products belong to fundamentally different food groups
+const FOOD_GROUPS = [
+  { id: 'beverages',   tags: ['beverages','boissons','drinks','sodas','waters','juices','jus','eaux','soda','coffee','tea','cafe','the','lait','milk','milks','smoothies','energy-drinks','boissons-gazeuses','boissons-sans-alcool'] },
+  { id: 'dairy',       tags: ['dairy','produits-laitiers','fromages','cheeses','yogurts','yaourts','cream','creme','beurre','butter','lait'] },
+  { id: 'meats',       tags: ['meats','viandes','poultry','volailles','charcuterie','saucisses','sausages','ham','jambon','beef','pork','chicken','porc','poulet','boeuf','fish','seafood','poissons','fruits-de-mer'] },
+  { id: 'cereals',     tags: ['cereals','cereales','breads','pains','pasta','pates','rice','riz','biscuits','crackers','flour','farine','grains'] },
+  { id: 'sweets',      tags: ['sweets','confectionery','chocolates','chocolats','candies','bonbons','desserts','ice-cream','glaces','cookies','biscuits-sucrés','cakes','gateaux','pastries','viennoiseries'] },
+  { id: 'snacks',      tags: ['snacks','chips','crisps','popcorn','aperitif','apéritif'] },
+  { id: 'condiments',  tags: ['condiments','sauces','dressings','vinegars','mustards','ketchup','mayonnaises','huiles','oils','spreads','pates-a-tartiner'] },
+  { id: 'fruits_veg',  tags: ['fruits','vegetables','legumes','légumes','salads','salades','herbs','épices','spices'] },
+  { id: 'prepared',    tags: ['meals','plats','soups','soupes','pizza','sandwiches','ready-to-eat','plats-cuisines','prepared-meals'] },
+];
 
+function getBroadGroup(categories_tags, nutriments) {
+  if (categories_tags && categories_tags.length > 0) {
+    const norm = categories_tags.map(t => t.replace(/^\w+:/, '').toLowerCase());
+    for (const group of FOOD_GROUPS) {
+      if (norm.some(t => group.tags.some(g => t === g || t.startsWith(g + '-') || t.endsWith('-' + g) || t.includes('-' + g + '-')))) return group.id;
+    }
+  }
+  // Nutritional fallback: if energy < 10 kcal/100g → treat as beverage
+  const kcal = nutriments?.['energy-kcal_100g'] ?? nutriments?.['energy_100g'];
+  if (kcal !== undefined && kcal < 10) return 'beverages';
+  return null;
+}
+
+const groupA = getBroadGroup(pA.categories_tags, pA.nutriments);
+const groupB = getBroadGroup(pB.categories_tags, pB.nutriments);
+// Warn only when BOTH groups are known AND they are different
+const mismatchWarning = (groupA && groupB && groupA !== groupB && pA.code !== pB.code)
+  ? `<div class="cmp-mismatch-banner">⚠️ Ces produits sont de catégories différentes. La comparaison peut être trompeuse.</div>`
+  : '';
   const NUTR_ROWS = [
     { key: 'energy-kcal',   icon: '🔥', label: 'Énergie', unit: 'kcal', higherIsBetter: false },
     { key: 'carbohydrates', icon: '🌾', label: 'Glucides', unit: 'g',    higherIsBetter: false },
@@ -1441,7 +1739,7 @@ function showCompareModal(pA, pB) {
 
   function smartVal(v, unit) {
     if (v === null) return { display: C.noData, unit: '' };
-    if (unit === 'g' && v < 1) return { display: (v * 1000).toFixed(1), unit: 'mg' };
+   if (unit === 'g' && v > 0 && v < 1) return { display: (v * 1000).toFixed(1), unit: 'mg' };
     return { display: v.toFixed(unit === 'kcal' ? 0 : 1), unit };
   }
 
@@ -1499,7 +1797,8 @@ function showCompareModal(pA, pB) {
 }
 
   function productHeader(p, vk, isWinner) {
-    const nutri = (p.nutriscore_grade || '').toUpperCase();
+    const nutri = ['A','B','C','D','E'].includes((p.nutriscore_grade || '').toUpperCase())
+  ? p.nutriscore_grade.toUpperCase() : '';
     const imgUrl = p.image_front_small_url || p.image_front_url || '';
     const img = imgUrl
       ? `<img class="cmp-product-img" src="${esc(imgUrl)}" alt="" loading="lazy">`
@@ -1536,7 +1835,7 @@ function showCompareModal(pA, pB) {
         <div class="cmp-headers-vs">VS</div>
         ${productHeader(pB, vB.verdictKey, winnerSide === 'B')}
       </div>
-
+      ${mismatchWarning}
       ${winnerBanner}
 
       <div class="cmp-section-title">${esc(L.sections.nutrition)} — ${esc(C.perHundred)}</div>
